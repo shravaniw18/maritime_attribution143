@@ -140,10 +140,10 @@ class VesselRiskProfiler:
         # Query all AIS waypoints for this MMSI, sorted by timestamp
         try:
             query = f"""
-                SELECT mmsi, timestamp, lat, lon, sog_knots, cog_degrees, vessel_type
+                SELECT mmsi, ts AS timestamp, lat, lon, sog_knots, cog_degrees, vessel_type
                 FROM ais_tracks
                 WHERE mmsi = '{mmsi}'
-                ORDER BY timestamp ASC
+                ORDER BY ts ASC
             """
             result = con.execute(query).fetchall()
             con.close()

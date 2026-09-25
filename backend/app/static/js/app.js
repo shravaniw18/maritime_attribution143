@@ -1,4 +1,4 @@
-// POLARIS High-Tech Maritime Forensic GIS Dashboard Controller
+// POLARIS High-Tech Maritime Forensic GIS Engine Controller
 let map;
 let currentCaseId = "case_01_gulf_mexico";
 let caseSummary = null;
@@ -6,10 +6,11 @@ let detectionData = null;
 let driftData = null;
 let candidatesData = [];
 let selectedMmsi = null;
+let activePanelId = "workflow";
 
 // Basemaps
 let baseLayers = {};
-let currentBaseLayer = null;
+let currentBaseLayer = "dark";
 
 // Overlay Layers
 let spillLayer = L.featureGroup();
@@ -41,53 +42,62 @@ let currentWeights = {
     penalty_ais_gap: 0.10
 };
 
-window.switchWorkspace = function(wsId) {
-    document.querySelectorAll('.workspace-panel').forEach(panel => {
-        panel.classList.add('hidden');
-    });
-    
-    const activeWs = document.getElementById(wsId);
-    if (activeWs) {
-        activeWs.classList.remove('hidden');
-    }
-    
-    document.querySelectorAll('.nav-btn').forEach(btn => {
-        if (btn.getAttribute('data-ws') === wsId) {
-            btn.classList.remove('hover:bg-navy-800', 'border-transparent', 'text-slate-400', 'hover:text-cyan-300');
-            btn.classList.add('bg-navy-850', 'border-cyan-500/50', 'text-cyan-400', 'shadow-[0_0_15px_rgba(6,182,212,0.3)]');
-        } else {
-            btn.classList.add('hover:bg-navy-800', 'border-transparent', 'text-slate-400', 'hover:text-cyan-300');
-            btn.classList.remove('bg-navy-850', 'border-cyan-500/50', 'text-cyan-400', 'shadow-[0_0_15px_rgba(6,182,212,0.3)]');
-        }
-    });
-};
+let currentTheme = localStorage.getItem("polaris_theme") || "dark";
 
 document.addEventListener("DOMContentLoaded", () => {
     initMap();
     setupEventListeners();
+    initTheme();
     loadCaseData(currentCaseId);
-    if (window.lucide) {
-        lucide.createIcons();
-    }
-    // Initialize default workspace
-    if (window.switchWorkspace) {
-        window.switchWorkspace('ws-cmd');
-    }
+    if (window.lucide) lucide.createIcons();
 });
 
+/* ── View Navigation (Landing vs Console) ── */
+function showLandingView() {
+    const landing = document.getElementById("landing-screen");
+    const simView = document.getElementById("simulation-view");
+    if (landing && simView) {
+        simView.classList.add("hidden");
+        landing.classList.remove("hidden");
+    }
+}
+
+function showConsoleView() {
+    const landing = document.getElementById("landing-screen");
+    const simView = document.getElementById("simulation-view");
+    if (landing && simView) {
+        landing.classList.add("hidden");
+        simView.classList.remove("hidden");
+        setTimeout(() => {
+            if (map) map.invalidateSize();
+        }, 100);
+    }
+}
+
+/* ── Dynamic Right Panel Switcher ── */
+function setActivePanel(panelId) {
+    activePanelId = panelId;
+    const panels = ["workflow", "evidence", "drift", "vessels"];
+    panels.forEach(p => {
+        const btn = document.getElementById(`btn-tab-${p}`);
+        const panel = document.getElementById(`panel-${p}`);
+        if (btn) btn.classList.toggle("active", p === panelId);
+        if (panel) panel.classList.toggle("hidden", p !== panelId);
+    });
+}
+
 function initMap() {
-    // Basemaps definition
     baseLayers["dark"] = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
         attribution: "&copy; OpenStreetMap contributors",
         maxZoom: 18,
         className: "map-dark-tiles"
     });
     baseLayers["sat"] = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", {
-        attribution: "&copy; Esri, Maxar, Earthstar Geographics",
+        attribution: "&copy; Esri, Maxar",
         maxZoom: 18
     });
     baseLayers["topo"] = L.tileLayer("https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png", {
-        attribution: "&copy; OpenTopoMap &copy; OpenStreetMap",
+        attribution: "&copy; OpenTopoMap",
         maxZoom: 17
     });
     baseLayers["light"] = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
@@ -103,33 +113,34 @@ function initMap() {
     });
     currentBaseLayer = "dark";
 
-    // Live Cursor Tracker
     map.on("mousemove", (e) => {
         const lat = e.latlng.lat.toFixed(4);
         const lon = e.latlng.lng.toFixed(4);
-        document.getElementById("cursor-coords").innerText = `Lat: ${lat}° | Lon: ${lon}°`;
-        const estDepth = Math.round(75 + Math.abs(Math.sin(e.latlng.lat * 10) * 850));
-        document.getElementById("cursor-depth").innerText = `Depth: ~${estDepth} m`;
+        const coordsEl = document.getElementById("cursor-coords");
+        const depthEl = document.getElementById("cursor-depth");
+        if (coordsEl) coordsEl.innerText = `Lat: ${lat}° | Lon: ${lon}°`;
+        if (depthEl) {
+            const estDepth = Math.round(75 + Math.abs(Math.sin(e.latlng.lat * 10) * 850));
+            depthEl.innerText = `Depth: ~${estDepth} m`;
+        }
     });
 
-    // Ruler Click Handler
     map.on("click", (e) => {
         if (!isMeasuring) return;
         measurePoints.push(e.latlng);
         if (measurePoints.length === 1) {
-            const m = L.circleMarker(e.latlng, { radius: 5, color: "#06b6d4", fillColor: "#0891b2", fillOpacity: 0.9 });
+            const m = L.circleMarker(e.latlng, { radius: 5, color: "#22d3ee", fillColor: "#0d9488", fillOpacity: 0.9 });
             rulerLayer.addLayer(m);
-            showToast("Click second point to measure distance");
+            showToast("Click second point on map to measure");
         } else if (measurePoints.length === 2) {
             const p1 = measurePoints[0];
             const p2 = measurePoints[1];
-            const dMeters = p1.distanceTo(p2);
-            const dKm = (dMeters / 1000).toFixed(2);
+            const dKm = (p1.distanceTo(p2) / 1000).toFixed(2);
             const dNm = (dKm * 0.539957).toFixed(2);
 
-            const line = L.polyline([p1, p2], { color: "#06b6d4", weight: 2.5, dashArray: "5, 5" });
+            const line = L.polyline([p1, p2], { color: "#22d3ee", weight: 2.5, dashArray: "5, 5" });
             const mid = [(p1.lat + p2.lat) / 2, (p1.lng + p2.lng) / 2];
-            const tip = L.tooltip({ permanent: true, direction: "top", className: "contour-label" })
+            const tip = L.tooltip({ permanent: true, direction: "top" })
                 .setLatLng(mid)
                 .setContent(`<b>${dKm} km (${dNm} NM)</b>`);
             
@@ -138,7 +149,8 @@ function initMap() {
             showToast(`Distance: ${dKm} km (${dNm} NM)`);
             isMeasuring = false;
             measurePoints = [];
-            document.getElementById("btn-measure-tool").classList.remove("bg-cyan-500/30");
+            const btn = document.getElementById("btn-measure-tool");
+            if (btn) btn.classList.remove("bg-teal-500/30");
         }
     });
 }
@@ -170,31 +182,33 @@ async function loadCaseData(caseId) {
         showToast(`Loaded scenario: ${caseSummary.title}`);
     } catch (err) {
         console.error("Error loading case:", err);
-        showToast("Error loading case data: " + err.message);
+        showToast("Error loading case data");
     }
 }
 
 function updateSidebarMetadata() {
     if (!detectionData || !driftData) return;
-    document.getElementById("meta-mission").innerText = detectionData.satellite_mission;
-    document.getElementById("meta-acq-time").innerText = new Date(detectionData.acquisition_time).toISOString().replace("T", " ").substring(0, 16) + " UTC";
-    document.getElementById("meta-centroid").innerText = `${detectionData.centroid_lat.toFixed(3)}°N, ${detectionData.centroid_lon.toFixed(3)}°E`;
-    document.getElementById("meta-extent").innerText = `${detectionData.surface_area_sqkm.toFixed(2)} km²`;
-    document.getElementById("meta-confidence").innerText = `${(detectionData.detection_confidence * 100).toFixed(1)}%`;
-    document.getElementById("meta-oil-prob").innerText = `${(detectionData.oil_probability * 100).toFixed(1)}%`;
-    document.getElementById("meta-spill-area").innerText = `${detectionData.surface_area_sqkm.toFixed(1)} km²`;
-    document.getElementById("meta-lookalike").innerText = `${(detectionData.lookalike_probability * 100).toFixed(1)}% (Low)`;
-    document.getElementById("meta-snr").innerText = `${detectionData.speckle_snr_db.toFixed(1)} dB`;
+    const setText = (id, text) => { const el = document.getElementById(id); if (el) el.innerText = text; };
 
-    document.getElementById("meta-origin-coord").innerText = `${driftData.most_probable_origin_lat.toFixed(3)}°N, ${driftData.most_probable_origin_lon.toFixed(3)}°E`;
+    setText("meta-mission", detectionData.satellite_mission);
+    setText("meta-acq-time", new Date(detectionData.acquisition_time).toISOString().replace("T", " ").substring(0, 16) + " UTC");
+    setText("meta-centroid", `${detectionData.centroid_lat.toFixed(3)}°N, ${detectionData.centroid_lon.toFixed(3)}°E`);
+    setText("meta-extent", `${detectionData.surface_area_sqkm.toFixed(2)} km²`);
+    setText("meta-confidence", `${(detectionData.detection_confidence * 100).toFixed(1)}%`);
+    setText("meta-oil-prob", `${(detectionData.oil_probability * 100).toFixed(1)}%`);
+    setText("meta-spill-area", `${detectionData.surface_area_sqkm.toFixed(1)} km²`);
+    setText("meta-lookalike", `${(detectionData.lookalike_probability * 100).toFixed(1)}% (Low)`);
+    setText("meta-snr", `${detectionData.speckle_snr_db.toFixed(1)} dB`);
+
+    setText("meta-origin-coord", `${driftData.most_probable_origin_lat.toFixed(3)}°N, ${driftData.most_probable_origin_lon.toFixed(3)}°E`);
     const winStart = new Date(driftData.origin_time_window_start).toISOString().substring(11, 16);
     const winEnd = new Date(driftData.origin_time_window_end).toISOString().substring(11, 16);
-    document.getElementById("meta-origin-window").innerText = `${winStart} – ${winEnd} UTC`;
-    document.getElementById("meta-spatial-unc").innerText = `±${driftData.spatial_uncertainty_km.toFixed(1)} km (95%)`;
-    document.getElementById("meta-currents").innerText = `${driftData.ocean_current_mean_mps.toFixed(2)} m/s (CMEMS)`;
-    document.getElementById("meta-winds").innerText = `${driftData.wind_speed_mean_mps.toFixed(1)} m/s (ERA5)`;
-    document.getElementById("meta-candidate-count").innerText = `${candidatesData.length} Vessels`;
-    document.getElementById("candidate-header-count").innerText = `${candidatesData.length} Vessels Evaluated`;
+    setText("meta-origin-window", `${winStart} – ${winEnd} UTC`);
+    setText("meta-spatial-unc", `±${driftData.spatial_uncertainty_km.toFixed(1)} km (95%)`);
+    setText("meta-currents", `${driftData.ocean_current_mean_mps.toFixed(2)} m/s (CMEMS)`);
+    setText("meta-winds", `${driftData.wind_speed_mean_mps.toFixed(1)} m/s (ERA5)`);
+    setText("meta-candidate-count", `${candidatesData.length} Vessels`);
+    setText("candidate-header-count", `${candidatesData.length} Vessels Evaluated`);
 }
 
 function renderSpillLayer() {
@@ -227,7 +241,6 @@ function renderDriftLayers() {
     if (heatmapLayer) map.removeLayer(heatmapLayer);
     if (!driftData) return;
 
-    // 1. Origin KDE Heatmap
     if (driftData.density_heatmap_grid && driftData.density_heatmap_grid.length > 0) {
         const heatPoints = driftData.density_heatmap_grid.map(p => [p[0], p[1], p[2] * 0.8]);
         heatmapLayer = L.heatLayer(heatPoints, {
@@ -238,35 +251,32 @@ function renderDriftLayers() {
         }).addTo(map);
     }
 
-    // 2. Bathymetric Depth Contours
     if (driftData.depth_contours) {
         driftData.depth_contours.forEach(c => {
             const line = L.polyline(c.coordinates, {
-                color: "#06b6d4",
+                color: "#22d3ee",
                 weight: 1.2,
                 opacity: 0.45,
                 dashArray: "3, 6"
-            }).bindTooltip(`Isobath: -${c.depth_m} m`, { sticky: true, className: "contour-label" });
+            }).bindTooltip(`Isobath: -${c.depth_m} m`, { sticky: true });
             contourLayer.addLayer(line);
         });
     }
 
-    // 3. Ocean Current Vector Streamlines
     if (driftData.current_vectors) {
         driftData.current_vectors.forEach(v => {
             const arrowIcon = L.divIcon({
                 className: "current-arrow",
-                html: `<div style="transform: rotate(${v.direction_deg}deg);"><svg class="w-4 h-4 text-cyan-400" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L4 16h6v6h4v-6h6z"/></svg></div>`,
+                html: `<div style="transform: rotate(${v.direction_deg}deg);"><svg class="w-4 h-4 text-teal-400" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L4 16h6v6h4v-6h6z"/></svg></div>`,
                 iconSize: [16, 16],
                 iconAnchor: [8, 8]
             });
             const m = L.marker([v.lat, v.lon], { icon: arrowIcon })
-                .bindTooltip(`Current: ${v.speed_knots} kts @ ${v.direction_deg}°`, { sticky: true, className: "contour-label" });
+                .bindTooltip(`Current: ${v.speed_knots} kts @ ${v.direction_deg}°`, { sticky: true });
             currentVectorLayer.addLayer(m);
         });
     }
 
-    // 4. Iso-Probability Contour Rings (75%, 90%, 95%)
     if (driftData.probability_rings) {
         driftData.probability_rings.forEach(r => {
             const ring = L.polygon(r.coordinates, {
@@ -275,12 +285,11 @@ function renderDriftLayers() {
                 dashArray: "4, 4",
                 fillColor: "#f59e0b",
                 fillOpacity: 0.05
-            }).bindTooltip(`Probability Boundary: ${r.confidence_percent}%`, { sticky: true, className: "contour-label" });
+            }).bindTooltip(`Probability Boundary: ${r.confidence_percent}%`, { sticky: true });
             probRingsLayer.addLayer(ring);
         });
     }
 
-    // 5. Uncertainty Ellipses
     if (driftData.ellipses) {
         driftData.ellipses.forEach((ell, idx) => {
             const isFinal = (idx === driftData.ellipses.length - 1);
@@ -296,7 +305,6 @@ function renderDriftLayers() {
         });
     }
 
-    // 6. Origin Centroid Pulse Marker
     const originIcon = L.divIcon({
         className: "origin-pulse",
         html: `<div class="w-4 h-4 rounded-full bg-amber-500 border-2 border-white shadow-lg flex items-center justify-center"><div class="w-1.5 h-1.5 rounded-full bg-slate-900"></div></div>`,
@@ -307,7 +315,6 @@ function renderDriftLayers() {
         .bindPopup(`<div class="text-xs p-1"><b class="text-amber-400">Probable Spill Origin Zone</b><br>Peak Release: ${new Date(driftData.most_probable_release_time).toUTCString().substring(17, 22)} UTC<br>Uncertainty: ±${driftData.spatial_uncertainty_km} km</div>`);
     ellipseLayer.addLayer(originMarker);
 
-    // 7. Sample Particle Trajectories
     if (driftData.sample_trajectories) {
         driftData.sample_trajectories.forEach(traj => {
             const latlngs = traj.steps.map(s => [s.lat, s.lon]);
@@ -355,7 +362,7 @@ function updateAnimatedPositions() {
             const isSelected = (cand.mmsi === selectedMmsi);
             const isTop = (idx === 0 && cand.overall_score >= 0.70);
             const markerBg = isTop ? "bg-red-500" : (cand.overall_score >= 0.55 ? "bg-amber-500" : "bg-slate-400");
-            const borderStyle = isSelected ? "border-2 border-white ring-2 ring-cyan-400 shadow-xl scale-125" : "border border-slate-900";
+            const borderStyle = isSelected ? "border-2 border-white ring-2 ring-teal-400 shadow-xl scale-125" : "border border-slate-900";
 
             const vesselIcon = L.divIcon({
                 className: "vessel-marker",
@@ -366,7 +373,7 @@ function updateAnimatedPositions() {
                                 <path d="M12 2L4 20l8-4 8 4L12 2z"/>
                             </svg>
                         </div>
-                        ${isSelected ? `<span class="absolute -top-5 whitespace-nowrap bg-navy-900 text-cyan-300 px-1.5 py-0.5 rounded text-[9px] border border-cyan-500 font-bold">${cand.vessel_name}</span>` : ""}
+                        ${isSelected ? `<span class="absolute -top-5 whitespace-nowrap bg-slate-900 text-teal-300 px-1.5 py-0.5 rounded text-[9px] border border-teal-500 font-bold">${cand.vessel_name}</span>` : ""}
                     </div>
                 `,
                 iconSize: [20, 20],
@@ -419,15 +426,14 @@ function renderCandidateList() {
 
     candidatesData.forEach((cand, idx) => {
         const isSelected = (cand.mmsi === selectedMmsi);
-        const isTop = (idx === 0 && cand.overall_score >= 0.70);
         const rankNumber = String(idx + 1).padStart(2, "0");
 
         const card = document.createElement("div");
         card.id = `cand-card-${cand.mmsi}`;
         card.className = `p-2 rounded border cursor-pointer transition flex items-center justify-between text-xs ${
             isSelected 
-                ? "bg-navy-800 border-cyan-500 shadow-md ring-1 ring-cyan-500/50"
-                : "bg-navy-850/80 border-navy-700 hover:bg-navy-800 hover:border-slate-600"
+                ? "bg-slate-800 border-teal-400 shadow-md ring-1 ring-teal-400/50"
+                : "bg-slate-900/80 border-slate-800 hover:bg-slate-800 hover:border-slate-700"
         }`;
 
         const scorePercent = Math.round(cand.overall_score * 100);
@@ -437,18 +443,17 @@ function renderCandidateList() {
                 ? "bg-amber-500/20 text-amber-400 border-amber-500/30"
                 : "bg-slate-700 text-slate-400 border-slate-600";
 
-        // Risk badge for this vessel (from general_risk_profile if available)
         const rp = cand.general_risk_profile;
         const riskLevel = (rp && rp.risk_level) ? rp.risk_level : "UNKNOWN";
         const riskLabel = {
             "LOW": "Low Risk", "MEDIUM": "Med Risk", "HIGH": "High Risk",
             "ELEVATED": "Elevated", "INSUFFICIENT_DATA": "No History", "UNKNOWN": "—"
         }[riskLevel] || "—";
-        const riskBadgeHtml = `<span class="risk-badge risk-${riskLevel}" title="General behavioral risk indicator from historical AIS patterns (not incident-specific). ${rp ? rp.note : ''}">${riskLabel}</span>`;
+        const riskBadgeHtml = `<span class="risk-badge risk-${riskLevel}">${riskLabel}</span>`;
 
         card.innerHTML = `
-            <div class="flex items-center space-x-2.5 min-w-0">
-                <span class="font-mono text-slate-400 text-[10px] font-bold">#${rankNumber}</span>
+            <div class="flex items-center space-x-2 min-w-0">
+                <span class="font-pixel text-slate-400 text-[10px] font-bold">#${rankNumber}</span>
                 <div class="min-w-0">
                     <div class="font-bold text-slate-200 truncate flex items-center space-x-1">
                         <span>${cand.vessel_name}</span>
@@ -458,7 +463,7 @@ function renderCandidateList() {
                 </div>
             </div>
             <div class="flex flex-col items-end space-y-1 shrink-0">
-                <span class="px-2 py-0.5 rounded text-[10px] font-bold border font-mono ${scoreBadgeClass}">${scorePercent}%</span>
+                <span class="px-2 py-0.5 rounded text-[10px] font-bold border font-pixel ${scoreBadgeClass}">${scorePercent}%</span>
                 ${riskBadgeHtml}
             </div>
         `;
@@ -470,6 +475,7 @@ function renderCandidateList() {
 
 function selectCandidate(mmsi) {
     selectedMmsi = mmsi;
+    setActivePanel("vessels");
     renderCandidateList();
     renderCandidateDetail();
     updateAnimatedPositions();
@@ -490,23 +496,21 @@ function renderCandidateDetail() {
     const cand = candidatesData.find(c => c.mmsi === selectedMmsi) || candidatesData[0];
     if (!cand) return;
 
-    document.getElementById("detail-vessel-name").innerText = cand.vessel_name;
-    document.getElementById("detail-mmsi-imo").innerText = `${cand.mmsi} / ${cand.imo || "N/A"}`;
-    document.getElementById("detail-vessel-type").innerText = cand.vessel_type;
-    document.getElementById("detail-flag").innerText = cand.flag_country;
-    document.getElementById("detail-cpa").innerText = `${cand.closest_approach_km} km (${new Date(cand.time_of_closest_approach).toUTCString().substring(17, 22)} UTC)`;
+    const setText = (id, text) => { const el = document.getElementById(id); if (el) el.innerText = text; };
 
-    // Dual score row — overall incident correlation
+    setText("detail-vessel-name", cand.vessel_name);
+    setText("detail-mmsi-imo", `${cand.mmsi} / ${cand.imo || "N/A"}`);
+    setText("detail-vessel-type", cand.vessel_type);
+    setText("detail-flag", cand.flag_country);
+    setText("detail-cpa", `${cand.closest_approach_km} km (${new Date(cand.time_of_closest_approach).toUTCString().substring(17, 22)} UTC)`);
+
     const overallPct = Math.round((cand.overall_score || 0) * 100);
     const overallEl = document.getElementById("detail-overall-score");
     if (overallEl) {
         overallEl.innerText = `${overallPct}%`;
-        overallEl.className = `font-mono font-black text-xl transition-colors ${
-            overallPct >= 70 ? "text-red-400" : overallPct >= 50 ? "text-amber-400" : "text-slate-300"
-        }`;
+        overallEl.className = `font-mono font-bold text-lg ${overallPct >= 70 ? "text-red-400" : overallPct >= 50 ? "text-amber-400" : "text-teal-400"}`;
     }
 
-    // General risk profile badge slot
     const rp = cand.general_risk_profile;
     const riskSlot = document.getElementById("detail-risk-badge-slot");
     const riskBreakdown = document.getElementById("detail-risk-breakdown");
@@ -519,18 +523,17 @@ function renderCandidateDetail() {
         riskSlot.innerHTML = `<span class="risk-badge risk-${riskLevel}">${riskLabel}</span>`;
     }
 
-    // Risk breakdown panel
     if (rp && rp.data_sufficiency && rp.data_sufficiency.has_sufficient_data && riskBreakdown) {
         riskBreakdown.classList.remove("hidden");
-        const gapEl    = document.getElementById("risk-gap-val");
-        const speedEl  = document.getElementById("risk-speed-val");
+        const gapEl = document.getElementById("risk-gap-val");
+        const speedEl = document.getElementById("risk-speed-val");
         const loiterEl = document.getElementById("risk-loiter-val");
-        const hoursEl  = document.getElementById("risk-hours-val");
+        const hoursEl = document.getElementById("risk-hours-val");
         const factorsEl = document.getElementById("risk-factors-list");
-        if (gapEl    && rp.gap_analysis)           gapEl.innerText    = `${rp.gap_analysis.gap_severity} (${rp.gap_analysis.total_gaps_detected} gaps)`;
-        if (speedEl  && rp.speed_anomaly_analysis) speedEl.innerText  = `${rp.speed_anomaly_analysis.anomaly_severity} (${rp.speed_anomaly_analysis.anomalies_detected})`;
-        if (loiterEl && rp.loiter_analysis)        loiterEl.innerText = `${rp.loiter_analysis.loiter_severity} (${rp.loiter_analysis.loiter_events} pts)`;
-        if (hoursEl)  hoursEl.innerText = `${(rp.historical_hours || 0).toFixed(0)} h tracked`;
+        if (gapEl && rp.gap_analysis) gapEl.innerText = `${rp.gap_analysis.gap_severity} (${rp.gap_analysis.total_gaps_detected} gaps)`;
+        if (speedEl && rp.speed_anomaly_analysis) speedEl.innerText = `${rp.speed_anomaly_analysis.anomaly_severity} (${rp.speed_anomaly_analysis.anomalies_detected})`;
+        if (loiterEl && rp.loiter_analysis) loiterEl.innerText = `${rp.loiter_analysis.loiter_severity} (${rp.loiter_analysis.loiter_events} pts)`;
+        if (hoursEl) hoursEl.innerText = `${(rp.historical_hours || 0).toFixed(0)} h tracked`;
         if (factorsEl) {
             factorsEl.innerHTML = (rp.risk_factors || [])
                 .map(f => `<div class="flex items-start gap-1"><span class="text-amber-400 shrink-0">•</span><span>${f}</span></div>`)
@@ -540,34 +543,27 @@ function renderCandidateDetail() {
         riskBreakdown.classList.add("hidden");
     }
 
-    // Maritime Specifications
-    document.getElementById("detail-length").innerText = `${cand.length_m || 182} m`;
-    document.getElementById("detail-beam").innerText = `${cand.beam_m || 32} m`;
-    document.getElementById("detail-draft").innerText = `${cand.draft_m || 11.5} m`;
-    document.getElementById("detail-dwt").innerText = `${(cand.dwt_tonnes || 49990).toLocaleString()} t`;
-    document.getElementById("detail-gt").innerText = `${(cand.gross_tonnage || 28500).toLocaleString()} GT`;
-    document.getElementById("detail-destination").innerText = `${cand.destination_port || "REGIONAL PORT"} &bull; ETA ${cand.eta || "In Transit"}`;
-    document.getElementById("detail-operator").innerText = `${cand.engine_type || "MAN B&W Diesel"} &bull; ${cand.owner_operator || "Commercial Maritime"}`;
-
-    // SOG Sparkline Chart
     renderSogSparkline(cand.waypoints || []);
 
     const pBadge = document.getElementById("detail-priority-badge");
-    pBadge.innerText = `${cand.priority_tier} PRIORITY`;
-    pBadge.className = `px-2 py-0.5 rounded text-[10px] font-bold border ${
-        cand.priority_tier === "HIGH"
-            ? "bg-red-500/20 text-red-400 border-red-500/30"
-            : (cand.priority_tier === "MEDIUM"
-                ? "bg-amber-500/20 text-amber-400 border-amber-500/30"
-                : "bg-slate-700 text-slate-400 border-slate-600")
-    }`;
+    if (pBadge) {
+        pBadge.innerText = `${cand.priority_tier} PRIORITY`;
+        pBadge.className = `px-2 py-0.5 rounded text-[10px] font-bold font-pixel border ${
+            cand.priority_tier === "HIGH"
+                ? "bg-red-500/20 text-red-400 border-red-500/30"
+                : (cand.priority_tier === "MEDIUM"
+                    ? "bg-amber-500/20 text-amber-400 border-amber-500/30"
+                    : "bg-slate-700 text-slate-400 border-slate-600")
+        }`;
+    }
 
-    // Sub-scores
     const subs = cand.sub_scores || {};
     const setBar = (valId, barId, val) => {
         const pct = Math.round(Math.max(0, Math.min(1, val)) * 100);
-        document.getElementById(valId).innerText = `${pct}%`;
-        document.getElementById(barId).style.width = `${pct}%`;
+        const vEl = document.getElementById(valId);
+        const bEl = document.getElementById(barId);
+        if (vEl) vEl.innerText = `${pct}%`;
+        if (bEl) bEl.style.width = `${pct}%`;
     };
     setBar("score-spatial-val", "score-spatial-bar", subs.spatial_compatibility || 0);
     setBar("score-temporal-val", "score-temporal-bar", subs.temporal_compatibility || 0);
@@ -575,44 +571,47 @@ function renderCandidateDetail() {
     setBar("score-anom-val", "score-anom-bar", subs.behavioral_anomaly || 0);
     setBar("score-type-val", "score-type-bar", subs.vessel_compatibility || 0);
 
-    // Evidence Points
     const evList = document.getElementById("detail-evidence-list");
-    evList.innerHTML = "";
-    (cand.evidence_points || []).forEach(pt => {
-        const li = document.createElement("li");
-        li.innerText = pt;
-        evList.appendChild(li);
-    });
-
-    // Anomalies
-    const anomContainer = document.getElementById("detail-anomaly-container");
-    anomContainer.innerHTML = "";
-    if (!cand.anomaly_flags || cand.anomaly_flags.length === 0) {
-        anomContainer.innerHTML = `<div class="text-[10px] text-slate-500 italic bg-navy-850 p-2 rounded border border-navy-700/40">No anomalous kinematic signatures detected.</div>`;
-    } else {
-        cand.anomaly_flags.forEach(anom => {
-            const div = document.createElement("div");
-            div.className = "bg-amber-500/10 border border-amber-500/30 rounded p-2 text-[10px] text-amber-300";
-            div.innerHTML = `<b>${anom.flag_type}:</b> ${anom.description}`;
-            anomContainer.appendChild(div);
+    if (evList) {
+        evList.innerHTML = "";
+        (cand.evidence_points || []).forEach(pt => {
+            const li = document.createElement("li");
+            li.innerText = pt;
+            evList.appendChild(li);
         });
+    }
+
+    const anomContainer = document.getElementById("detail-anomaly-container");
+    if (anomContainer) {
+        anomContainer.innerHTML = "";
+        if (!cand.anomaly_flags || cand.anomaly_flags.length === 0) {
+            anomContainer.innerHTML = `<div class="text-[10px] text-slate-500 italic bg-slate-900/60 p-1.5 rounded border border-slate-800">No anomalous kinematic signatures detected.</div>`;
+        } else {
+            cand.anomaly_flags.forEach(anom => {
+                const div = document.createElement("div");
+                div.className = "bg-amber-500/10 border border-amber-500/30 rounded p-1.5 text-[10px] text-amber-300";
+                div.innerHTML = `<b>${anom.flag_type}:</b> ${anom.description}`;
+                anomContainer.appendChild(div);
+            });
+        }
     }
 }
 
 function renderSogSparkline(waypoints) {
     const container = document.getElementById("sog-sparkline-container");
+    const summaryEl = document.getElementById("detail-sog-summary");
     if (!container || waypoints.length === 0) {
-        container.innerHTML = `<span class="text-slate-500 text-[9px]">No SOG profile</span>`;
+        if (container) container.innerHTML = `<span class="text-slate-500 text-[9px]">No SOG profile</span>`;
         return;
     }
     const speeds = waypoints.map(w => w.sog_knots);
     const minSpd = Math.min(...speeds);
     const maxSpd = Math.max(...speeds, 18.0);
     const avgSpd = (speeds.reduce((a, b) => a + b, 0) / speeds.length).toFixed(1);
-    document.getElementById("detail-sog-summary").innerText = `Min ${minSpd.toFixed(1)} kts &bull; Avg ${avgSpd} kts`;
+    if (summaryEl) summaryEl.innerText = `MIN ${minSpd.toFixed(1)} KTS | AVG ${avgSpd} KTS`;
 
-    const w = 320;
-    const h = 36;
+    const w = 300;
+    const h = 32;
     const pts = speeds.map((s, idx) => {
         const x = (idx / (speeds.length - 1)) * (w - 10) + 5;
         const y = h - ((s - minSpd) / Math.max(1, (maxSpd - minSpd))) * (h - 8) - 4;
@@ -621,7 +620,7 @@ function renderSogSparkline(waypoints) {
 
     container.innerHTML = `
         <svg class="w-full h-full" viewBox="0 0 ${w} ${h}">
-            <polyline fill="none" stroke="#06b6d4" stroke-width="2" stroke-linecap="round" points="${pts}"/>
+            <polyline fill="none" stroke="#22d3ee" stroke-width="2" stroke-linecap="round" points="${pts}"/>
         </svg>
     `;
 }
@@ -643,56 +642,85 @@ function updateActiveWeightsUI() {
     const strip = document.getElementById("active-weights-strip");
     if (!strip) return;
     strip.innerHTML = `
-        <span class="px-1.5 py-0.5 rounded bg-navy-800 text-cyan-300 border border-navy-700">Spat: ${currentWeights.weight_spatial.toFixed(2)}</span>
-        <span class="px-1.5 py-0.5 rounded bg-navy-800 text-cyan-300 border border-navy-700">Temp: ${currentWeights.weight_temporal.toFixed(2)}</span>
-        <span class="px-1.5 py-0.5 rounded bg-navy-800 text-cyan-300 border border-navy-700">Traj: ${currentWeights.weight_trajectory.toFixed(2)}</span>
-        <span class="px-1.5 py-0.5 rounded bg-navy-800 text-amber-300 border border-navy-700">Anom: ${currentWeights.weight_anomaly.toFixed(2)}</span>
-        <span class="px-1.5 py-0.5 rounded bg-navy-800 text-slate-300 border border-navy-700">Type: ${currentWeights.weight_vessel_type.toFixed(2)}</span>
-        <span class="px-1.5 py-0.5 rounded bg-navy-800 text-red-400 border border-navy-700">Gap: ${currentWeights.penalty_ais_gap.toFixed(2)}</span>
+        <span class="px-1 py-0.5 rounded bg-slate-800 text-teal-300 border border-slate-700">Spat: ${currentWeights.weight_spatial.toFixed(2)}</span>
+        <span class="px-1 py-0.5 rounded bg-slate-800 text-teal-300 border border-slate-700">Temp: ${currentWeights.weight_temporal.toFixed(2)}</span>
+        <span class="px-1 py-0.5 rounded bg-slate-800 text-teal-300 border border-slate-700">Traj: ${currentWeights.weight_trajectory.toFixed(2)}</span>
+        <span class="px-1 py-0.5 rounded bg-slate-800 text-amber-300 border border-slate-700">Anom: ${currentWeights.weight_anomaly.toFixed(2)}</span>
+        <span class="px-1 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">Type: ${currentWeights.weight_vessel_type.toFixed(2)}</span>
     `;
 }
 
-function setupEventListeners() {
-    // Navigation Rail
-    document.querySelectorAll('.nav-btn').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            const wsId = e.currentTarget.getAttribute('data-ws');
-            if (wsId) window.switchWorkspace(wsId);
-        });
-    });
+/* ── Light / Dark Theme Support (Checked & Verified) ── */
+function initTheme() {
+    applyTheme(currentTheme, false);
+}
 
-    document.getElementById("case-selector").addEventListener("change", (e) => {
-        loadCaseData(e.target.value);
-    });
+function toggleTheme() {
+    currentTheme = currentTheme === "dark" ? "light" : "dark";
+    localStorage.setItem("polaris_theme", currentTheme);
+    applyTheme(currentTheme, true);
+    showToast(`Switched to ${currentTheme.toUpperCase()} mode`);
+}
 
-    // Basemap Switcher
-    const setBasemap = (key, activeBtnId) => {
-        ["btn-basemap-dark", "btn-basemap-sat", "btn-basemap-topo", "btn-basemap-light"].forEach(id => {
-            const b = document.getElementById(id);
-            b.className = "px-2 py-1 rounded bg-navy-850 hover:bg-navy-750 text-slate-300 border border-navy-700 transition";
-        });
-        document.getElementById(activeBtnId).className = "px-2 py-1 rounded bg-ocean-600/30 text-ocean-300 border border-ocean-500/50 font-semibold transition";
-        if (currentBaseLayer && baseLayers[currentBaseLayer]) map.removeLayer(baseLayers[currentBaseLayer]);
+function applyTheme(theme, isUserAction = false) {
+    const sun = document.getElementById("theme-toggle-icon-sun");
+    const moon = document.getElementById("theme-toggle-icon-moon");
+
+    if (theme === "light") {
+        document.body.classList.add("light-mode");
+        document.documentElement.classList.add("light-mode");
+        if (sun) sun.classList.add("hidden");
+        if (moon) moon.classList.remove("hidden");
+        setBasemapStyle("light", "btn-basemap-light");
+    } else {
+        document.body.classList.remove("light-mode");
+        document.documentElement.classList.remove("light-mode");
+        if (moon) moon.classList.add("hidden");
+        if (sun) sun.classList.remove("hidden");
+        setBasemapStyle("dark", "btn-basemap-dark");
+    }
+}
+
+function setBasemapStyle(key, activeBtnId) {
+    ["btn-basemap-dark", "btn-basemap-sat", "btn-basemap-topo", "btn-basemap-light"].forEach(id => {
+        const b = document.getElementById(id);
+        if (b) b.className = "px-2 py-1 rounded bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-700";
+    });
+    const activeBtn = document.getElementById(activeBtnId);
+    if (activeBtn) activeBtn.className = "px-2 py-1 rounded bg-teal-500/20 text-teal-300 border border-teal-500/50 font-bold";
+    if (currentBaseLayer && baseLayers[currentBaseLayer] && map) map.removeLayer(baseLayers[currentBaseLayer]);
+    if (baseLayers[key] && map) {
         baseLayers[key].addTo(map);
         baseLayers[key].bringToBack();
         currentBaseLayer = key;
-    };
-    document.getElementById("btn-basemap-dark").addEventListener("click", () => setBasemap("dark", "btn-basemap-dark"));
-    document.getElementById("btn-basemap-sat").addEventListener("click", () => setBasemap("sat", "btn-basemap-sat"));
-    document.getElementById("btn-basemap-topo").addEventListener("click", () => setBasemap("topo", "btn-basemap-topo"));
-    document.getElementById("btn-basemap-light").addEventListener("click", () => setBasemap("light", "btn-basemap-light"));
+    }
+}
 
-    // Ruler Tool
+function setupEventListeners() {
+    const caseSelector = document.getElementById("case-selector");
+    if (caseSelector) {
+        caseSelector.addEventListener("change", (e) => {
+            loadCaseData(e.target.value);
+        });
+    }
+
+    // Basemaps Switchers
+    document.getElementById("btn-basemap-dark").addEventListener("click", () => setBasemapStyle("dark", "btn-basemap-dark"));
+    document.getElementById("btn-basemap-sat").addEventListener("click", () => setBasemapStyle("sat", "btn-basemap-sat"));
+    document.getElementById("btn-basemap-topo").addEventListener("click", () => setBasemapStyle("topo", "btn-basemap-topo"));
+    document.getElementById("btn-basemap-light").addEventListener("click", () => setBasemapStyle("light", "btn-basemap-light"));
+
+    // Measure Ruler Tool
     document.getElementById("btn-measure-tool").addEventListener("click", () => {
         isMeasuring = !isMeasuring;
         measurePoints = [];
         rulerLayer.clearLayers();
         const btn = document.getElementById("btn-measure-tool");
         if (isMeasuring) {
-            btn.classList.add("bg-cyan-500/30", "text-white");
+            btn.classList.add("bg-teal-500/30");
             showToast("Ruler Active: Click first point on map");
         } else {
-            btn.classList.remove("bg-cyan-500/30", "text-white");
+            btn.classList.remove("bg-teal-500/30");
             showToast("Ruler cancelled");
         }
     });
@@ -707,7 +735,7 @@ function setupEventListeners() {
     document.getElementById("layer-particles").addEventListener("change", (e) => { if (e.target.checked) map.addLayer(particleLayer); else map.removeLayer(particleLayer); });
     document.getElementById("layer-ais-tracks").addEventListener("change", (e) => { if (e.target.checked) map.addLayer(vesselLayer); else map.removeLayer(vesselLayer); });
 
-    // Quick Zoom Buttons
+    // Zoom Shortcuts
     document.getElementById("btn-fit-spill").addEventListener("click", () => { if (spillLayer.getLayers().length > 0) map.fitBounds(spillLayer.getBounds(), { padding: [50, 50] }); });
     document.getElementById("btn-fit-origin").addEventListener("click", () => { if (driftData) map.flyTo([driftData.most_probable_origin_lat, driftData.most_probable_origin_lon], 10); });
     document.getElementById("btn-fit-all").addEventListener("click", fitAllLayers);
@@ -735,26 +763,20 @@ function setupEventListeners() {
     document.getElementById("btn-speed-1x").addEventListener("click", () => setSpeed(1));
     document.getElementById("btn-speed-2x").addEventListener("click", () => setSpeed(2));
 
-    // Scoring Weights Modal
-    const openWeightsModal  = () => document.getElementById("modal-weights").setAttribute("data-open", "true");
-    const closeWeightsModal = () => document.getElementById("modal-weights").removeAttribute("data-open");
+    // Modals Controls
     document.getElementById("btn-open-weights").addEventListener("click", openWeightsModal);
-    document.getElementById("btn-quick-weights").addEventListener("click", openWeightsModal);
     document.getElementById("btn-close-weights").addEventListener("click", closeWeightsModal);
     setupWeightSliders();
     document.getElementById("btn-apply-weights").addEventListener("click", applyWeightRecomputation);
     document.getElementById("btn-reset-weights").addEventListener("click", resetWeightSliders);
 
-    // Evidence Graph Modal
     document.getElementById("btn-open-graph").addEventListener("click", openGraphModal);
     document.getElementById("btn-close-graph").addEventListener("click", () => document.getElementById("modal-graph").removeAttribute("data-open"));
 
-    // Report Modal
     document.getElementById("btn-open-report").addEventListener("click", openReportModal);
     document.getElementById("btn-close-report").addEventListener("click", () => document.getElementById("modal-report").removeAttribute("data-open"));
     document.getElementById("btn-copy-markdown").addEventListener("click", copyReportMarkdown);
 
-    // Analyst Actions
     document.getElementById("btn-flag-candidate").addEventListener("click", () => toggleAnalystFlag(true));
     document.getElementById("btn-exclude-candidate").addEventListener("click", () => toggleAnalystFlag(false));
 }
@@ -772,11 +794,11 @@ function togglePlayPause() {
     isPlaying = !isPlaying;
     const icon = document.getElementById("play-icon");
     if (isPlaying) {
-        icon.setAttribute("data-lucide", "pause");
+        if (icon) icon.setAttribute("data-lucide", "pause");
         if (timelineHour >= 0.0) timelineHour = -48.0;
         playTimer = setInterval(stepAnimation, 400 / playSpeed);
     } else {
-        icon.setAttribute("data-lucide", "play");
+        if (icon) icon.setAttribute("data-lucide", "play");
         clearInterval(playTimer);
     }
     if (window.lucide) lucide.createIcons();
@@ -788,15 +810,18 @@ function stepAnimation() {
         timelineHour = 0.0;
         togglePlayPause();
     }
-    document.getElementById("timeline-slider").value = timelineHour;
+    const slider = document.getElementById("timeline-slider");
+    if (slider) slider.value = timelineHour;
     updateTimelineDisplay();
     updateAnimatedPositions();
 }
 
 function setSpeed(spd) {
     playSpeed = spd;
-    document.getElementById("btn-speed-1x").className = (spd === 1) ? "px-2 py-0.5 rounded bg-ocean-600/30 text-ocean-300 border border-ocean-500/40 text-[10px] font-bold" : "px-2 py-0.5 rounded bg-navy-850 hover:bg-navy-750 text-slate-300 text-[10px]";
-    document.getElementById("btn-speed-2x").className = (spd === 2) ? "px-2 py-0.5 rounded bg-ocean-600/30 text-ocean-300 border border-ocean-500/40 text-[10px] font-bold" : "px-2 py-0.5 rounded bg-navy-850 hover:bg-navy-750 text-slate-300 text-[10px]";
+    const b1 = document.getElementById("btn-speed-1x");
+    const b2 = document.getElementById("btn-speed-2x");
+    if (b1) b1.className = (spd === 1) ? "px-1.5 py-0.5 rounded bg-teal-500/20 text-teal-300 border border-teal-500/40 font-bold" : "px-1.5 py-0.5 rounded bg-slate-900 text-slate-400 border border-slate-700";
+    if (b2) b2.className = (spd === 2) ? "px-1.5 py-0.5 rounded bg-teal-500/20 text-teal-300 border border-teal-500/40 font-bold" : "px-1.5 py-0.5 rounded bg-slate-900 text-slate-400 border border-slate-700";
     if (isPlaying) { clearInterval(playTimer); playTimer = setInterval(stepAnimation, 400 / playSpeed); }
 }
 
@@ -809,13 +834,19 @@ function fitAllLayers() {
     map.flyToBounds(bounds, { padding: [60, 60], maxZoom: 10, duration: 1.0 });
 }
 
+function openWeightsModal() { document.getElementById("modal-weights").setAttribute("data-open", "true"); }
+function closeWeightsModal() { document.getElementById("modal-weights").removeAttribute("data-open"); }
+
 function setupWeightSliders() {
     const bindSlider = (id, valId, key) => {
         const s = document.getElementById(id);
-        s.addEventListener("input", (e) => {
-            document.getElementById(valId).innerText = parseFloat(e.target.value).toFixed(2);
-            currentWeights[key] = parseFloat(e.target.value);
-        });
+        if (s) {
+            s.addEventListener("input", (e) => {
+                const valEl = document.getElementById(valId);
+                if (valEl) valEl.innerText = parseFloat(e.target.value).toFixed(2);
+                currentWeights[key] = parseFloat(e.target.value);
+            });
+        }
     };
     bindSlider("slider-weight-spatial", "slider-val-spatial", "weight_spatial");
     bindSlider("slider-weight-temporal", "slider-val-temporal", "weight_temporal");
@@ -837,16 +868,7 @@ async function applyWeightRecomputation() {
         renderCandidateDetail();
         renderVesselLayers();
         updateActiveWeightsUI();
-        document.getElementById("modal-weights").removeAttribute("data-open");
-        
-        // Flash update on cards
-        candidatesData.forEach(c => {
-            const el = document.getElementById(`cand-card-${c.mmsi}`);
-            if (el) {
-                el.classList.add("flash-update");
-                setTimeout(() => el.classList.remove("flash-update"), 1500);
-            }
-        });
+        closeWeightsModal();
         showToast("Attribution weights applied & candidates re-ranked!");
     } catch (err) {
         console.error("Error recomputing weights:", err);
@@ -856,17 +878,24 @@ async function applyWeightRecomputation() {
 
 function resetWeightSliders() {
     currentWeights = { weight_spatial: 0.30, weight_temporal: 0.25, weight_trajectory: 0.20, weight_anomaly: 0.15, weight_vessel_type: 0.10, penalty_ais_gap: 0.10 };
-    document.getElementById("slider-weight-spatial").value = 0.30; document.getElementById("slider-val-spatial").innerText = "0.30";
-    document.getElementById("slider-weight-temporal").value = 0.25; document.getElementById("slider-val-temporal").innerText = "0.25";
-    document.getElementById("slider-weight-trajectory").value = 0.20; document.getElementById("slider-val-trajectory").innerText = "0.20";
-    document.getElementById("slider-weight-anomaly").value = 0.15; document.getElementById("slider-val-anomaly").innerText = "0.15";
-    document.getElementById("slider-weight-type").value = 0.10; document.getElementById("slider-val-type").innerText = "0.10";
-    document.getElementById("slider-weight-gap").value = 0.10; document.getElementById("slider-val-gap").innerText = "0.10";
+    const setVal = (id, valId, v) => {
+        const s = document.getElementById(id);
+        const txt = document.getElementById(valId);
+        if (s) s.value = v;
+        if (txt) txt.innerText = v.toFixed(2);
+    };
+    setVal("slider-weight-spatial", "slider-val-spatial", 0.30);
+    setVal("slider-weight-temporal", "slider-val-temporal", 0.25);
+    setVal("slider-weight-trajectory", "slider-val-trajectory", 0.20);
+    setVal("slider-weight-anomaly", "slider-val-anomaly", 0.15);
+    setVal("slider-weight-type", "slider-val-type", 0.10);
+    setVal("slider-weight-gap", "slider-val-gap", 0.10);
     updateActiveWeightsUI();
 }
 
 async function openGraphModal() {
     const container = document.getElementById("graph-content-body");
+    if (!container) return;
     container.innerHTML = `<div class="text-slate-400 text-xs p-2">Loading evidence graph...</div>`;
     document.getElementById("modal-graph").setAttribute("data-open", "true");
 
@@ -876,7 +905,6 @@ async function openGraphModal() {
             return r.json();
         });
 
-        // Group nodes by type for readable display
         const nodeTypeOrder = ["SATELLITE", "SPILL", "DRIFT", "ORIGIN", "VESSEL", "ANOMALY"];
         const byType = {};
         for (const t of nodeTypeOrder) byType[t] = [];
@@ -885,24 +913,15 @@ async function openGraphModal() {
             bucket.push(n);
         }
 
-        const typeColors = {
-            SATELLITE: "text-sky-400",
-            SPILL:     "text-red-400",
-            DRIFT:     "text-cyan-400",
-            ORIGIN:    "text-amber-400",
-            VESSEL:    "text-emerald-400",
-            ANOMALY:   "text-orange-400",
-        };
-
         let nodesHtml = "";
         for (const t of nodeTypeOrder) {
             const group = byType[t] || [];
             if (!group.length) continue;
             nodesHtml += `<div class="mb-3">
-                <div class="text-[10px] font-bold uppercase tracking-wider ${typeColors[t] || "text-slate-400"} mb-1.5">${t} (${group.length})</div>
+                <div class="text-[10px] font-pixel font-bold uppercase tracking-wider text-teal-400 mb-1">${t} (${group.length})</div>
                 <div class="grid grid-cols-2 gap-1.5">
                     ${group.map(n => `
-                        <div class="p-2 bg-navy-900 rounded border border-navy-700/60 space-y-0.5">
+                        <div class="p-2 bg-slate-900 rounded border border-slate-800 space-y-0.5">
                             <div class="font-semibold text-slate-200 text-[11px] leading-snug">${n.label}</div>
                             ${Object.entries(n.properties || {}).map(([k, v]) =>
                                 `<div class="text-[10px] text-slate-500 font-mono truncate">${k}: <span class="text-slate-400">${String(v).substring(0, 40)}</span></div>`
@@ -914,30 +933,23 @@ async function openGraphModal() {
 
         const edgesHtml = (g.edges || []).map(e => {
             const confPct = Math.round((e.confidence || 0) * 100);
-            const confColor = confPct >= 85 ? "text-emerald-400" : confPct >= 60 ? "text-amber-400" : "text-slate-400";
-            return `<div class="flex items-start justify-between gap-2 p-1.5 bg-navy-900 rounded border border-navy-700/50">
-                <span class="font-mono text-[10px] text-slate-300 min-w-0 leading-relaxed">
-                    <span class="text-cyan-400">${e.source}</span>
-                    <span class="text-slate-500 mx-1">→</span>
-                    <span class="text-amber-300">${e.target}</span>
-                    <span class="block text-[9px] text-slate-500 mt-0.5">${e.relation}</span>
+            return `<div class="flex items-start justify-between gap-2 p-1.5 bg-slate-900 rounded border border-slate-800 font-mono">
+                <span class="text-[10px] text-slate-300">
+                    <span class="text-teal-400">${e.source}</span> &rarr; <span class="text-amber-300">${e.target}</span>
+                    <span class="block text-[9px] text-slate-500">${e.relation}</span>
                 </span>
-                <span class="shrink-0 font-bold font-mono text-[11px] ${confColor}">${confPct}%</span>
+                <span class="font-bold text-[11px] text-teal-400">${confPct}%</span>
             </div>`;
         }).join("");
 
         container.innerHTML = `
-            <div class="space-y-4 text-xs">
+            <div class="space-y-4 text-xs font-sans">
                 <div>
-                    <div class="panel-header mb-2">
-                        <span class="panel-title"><i data-lucide="circle-dot" class="w-3.5 h-3.5"></i>Evidence Nodes (${(g.nodes||[]).length})</span>
-                    </div>
+                    <div class="font-pixel text-teal-400 font-bold mb-2 uppercase">Evidence Nodes (${(g.nodes||[]).length})</div>
                     ${nodesHtml || '<p class="text-slate-500 text-[10px]">No nodes.</p>'}
                 </div>
                 <div>
-                    <div class="panel-header mb-2">
-                        <span class="panel-title"><i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>Evidentiary Linkages (${(g.edges||[]).length})</span>
-                    </div>
+                    <div class="font-pixel text-teal-400 font-bold mb-2 uppercase">Evidentiary Linkages (${(g.edges||[]).length})</div>
                     <div class="space-y-1">${edgesHtml || '<p class="text-slate-500 text-[10px]">No edges.</p>'}</div>
                 </div>
             </div>
@@ -955,9 +967,12 @@ async function openReportModal() {
             fetch(`/api/report/${currentCaseId}`).then(r => r.json()),
             fetch(`/api/report/${currentCaseId}/markdown`).then(r => r.text())
         ]);
-        document.getElementById("modal-report-hash").innerText = `SHA-256: ${jsonRes.provenance_hash_sha256}`;
-        document.getElementById("provenance-hash-display").innerText = `SHA-256: ${jsonRes.provenance_hash_sha256.substring(0, 16)}...`;
-        document.getElementById("report-content-body").innerText = mdRes;
+        const h1 = document.getElementById("modal-report-hash");
+        const h2 = document.getElementById("provenance-hash-display");
+        const body = document.getElementById("report-content-body");
+        if (h1) h1.innerText = `SHA-256: ${jsonRes.provenance_hash_sha256}`;
+        if (h2) h2.innerText = `SHA-256: ${jsonRes.provenance_hash_sha256.substring(0, 16)}...`;
+        if (body) body.innerText = mdRes;
         document.getElementById("modal-report").setAttribute("data-open", "true");
     } catch (err) {
         console.error("Error loading report:", err);
@@ -965,8 +980,9 @@ async function openReportModal() {
 }
 
 function copyReportMarkdown() {
-    const text = document.getElementById("report-content-body").innerText;
-    navigator.clipboard.writeText(text).then(() => {
+    const textEl = document.getElementById("report-content-body");
+    if (!textEl) return;
+    navigator.clipboard.writeText(textEl.innerText).then(() => {
         showToast("Investigation brief copied to clipboard!");
     });
 }
