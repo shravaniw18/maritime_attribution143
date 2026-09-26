@@ -10,7 +10,7 @@ let activePanelId = "workflow";
 
 // Basemaps
 let baseLayers = {};
-let currentBaseLayer = "dark";
+let currentBaseLayer = "light";
 
 // Overlay Layers
 let spillLayer = L.featureGroup();
@@ -42,7 +42,7 @@ let currentWeights = {
     penalty_ais_gap: 0.10
 };
 
-let currentTheme = localStorage.getItem("polaris_theme") || "dark";
+let currentTheme = localStorage.getItem("polaris_theme") || "light";
 
 document.addEventListener("DOMContentLoaded", () => {
     initMap();
@@ -105,14 +105,15 @@ function initMap() {
         maxZoom: 18
     });
 
+    const initialBase = currentTheme === "light" ? "light" : "dark";
     map = L.map("gis-map", {
         center: [28.38, -89.15],
         zoom: 9,
         zoomControl: false,
-        layers: [baseLayers["dark"], spillLayer, ellipseLayer, probRingsLayer, contourLayer, currentVectorLayer, particleLayer, vesselLayer, animMarkerLayer, rulerLayer]
+        layers: [baseLayers[initialBase], spillLayer, ellipseLayer, probRingsLayer, contourLayer, currentVectorLayer, particleLayer, vesselLayer, animMarkerLayer, rulerLayer]
     });
     L.control.zoom({ position: 'bottomright' }).addTo(map);
-    currentBaseLayer = "dark";
+    currentBaseLayer = initialBase;
 
     map.on("mousemove", (e) => {
         const lat = e.latlng.lat.toFixed(4);
@@ -220,9 +221,9 @@ function renderSpillLayer() {
     if (!detectionData || !detectionData.polygon_geojson) return;
     const geoJson = L.geoJSON(detectionData.polygon_geojson, {
         style: {
-            color: "#ef4444",
+            color: "#d97706",
             weight: 2,
-            fillColor: "#991b1b",
+            fillColor: "#f59e0b",
             fillOpacity: 0.65
         }
     }).bindPopup(`
@@ -688,10 +689,10 @@ function applyTheme(theme, isUserAction = false) {
 function setBasemapStyle(key, activeBtnId) {
     ["btn-basemap-dark", "btn-basemap-sat", "btn-basemap-topo", "btn-basemap-light"].forEach(id => {
         const b = document.getElementById(id);
-        if (b) b.className = "px-2 py-1 rounded bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-700";
+        if (b) b.className = "px-2 py-1 rounded bg-[var(--bg-panel)] hover:bg-[var(--bg-panel)] text-[var(--text-muted)] border border-[var(--border-teal)]";
     });
     const activeBtn = document.getElementById(activeBtnId);
-    if (activeBtn) activeBtn.className = "px-2 py-1 rounded bg-teal-500/20 text-teal-300 border border-teal-500/50 font-bold";
+    if (activeBtn) activeBtn.className = "px-2 py-1 rounded bg-[var(--accent-teal)] text-white border border-[var(--accent-teal)] font-bold";
     if (currentBaseLayer && baseLayers[currentBaseLayer] && map) map.removeLayer(baseLayers[currentBaseLayer]);
     if (baseLayers[key] && map) {
         baseLayers[key].addTo(map);
@@ -1012,50 +1013,3 @@ async function toggleAnalystFlag(isFlag) {
     }
 }
 
-/* ── Theme Toggling Logic ── */
-function initTheme() {
-    applyTheme(currentTheme);
-}
-
-function applyTheme(themeName) {
-    if (themeName === "light") {
-        document.body.classList.add("light-theme");
-        document.body.classList.remove("dark-theme");
-    } else {
-        document.body.classList.add("dark-theme");
-        document.body.classList.remove("light-theme");
-    }
-
-    // Toggle icon (sun/moon) if it exists
-    const sunIcon = document.getElementById("theme-toggle-icon-sun");
-    const moonIcon = document.getElementById("theme-toggle-icon-moon");
-    if (sunIcon && moonIcon) {
-        if (themeName === "light") {
-            sunIcon.classList.add("hidden");
-            moonIcon.classList.remove("hidden");
-        } else {
-            moonIcon.classList.add("hidden");
-            sunIcon.classList.remove("hidden");
-        }
-    }
-
-    // Switch basemap if available
-    if (map && baseLayers["light"] && baseLayers["dark"]) {
-        if (themeName === "light" && currentBaseLayer !== "light") {
-            map.removeLayer(baseLayers[currentBaseLayer]);
-            map.addLayer(baseLayers["light"]);
-            currentBaseLayer = "light";
-        } else if (themeName === "dark" && currentBaseLayer !== "dark") {
-            map.removeLayer(baseLayers[currentBaseLayer]);
-            map.addLayer(baseLayers["dark"]);
-            currentBaseLayer = "dark";
-        }
-    }
-}
-
-function toggleTheme() {
-    currentTheme = currentTheme === "dark" ? "light" : "dark";
-    localStorage.setItem("polaris_theme", currentTheme);
-    applyTheme(currentTheme);
-    showToast(`Switched to ${currentTheme} theme`);
-}

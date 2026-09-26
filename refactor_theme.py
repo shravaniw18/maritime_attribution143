@@ -1,0 +1,190 @@
+﻿import re
+
+html_path = 'e:/sih/polaris-maritime-attribution-AIS/backend/app/static/index.html'
+css_path = 'e:/sih/polaris-maritime-attribution-AIS/backend/app/static/css/styles.css'
+js_path = 'e:/sih/polaris-maritime-attribution-AIS/backend/app/static/js/app.js'
+
+with open(html_path, 'r', encoding='utf-8') as f: html = f.read()
+
+# Fix tailwind config
+new_tailwind_config = '''tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ["'Roboto Condensed'", "sans-serif"],
+                        mono: ["'Roboto Condensed'", "sans-serif"],
+                        title: ["'Roboto Condensed'", "sans-serif"],
+                        pixel: ["'Roboto Condensed'", "sans-serif"]
+                    },
+                    borderRadius: {
+                        DEFAULT: "16px",
+                        'md': "16px",
+                        'lg': "20px",
+                        'full': "9999px"
+                    },
+                    boxShadow: {
+                        'DEFAULT': '0 4px 20px -2px rgba(13, 148, 136, 0.1)',
+                        'md': '0 8px 30px -4px rgba(13, 148, 136, 0.15)',
+                        'lg': '0 12px 40px -6px rgba(13, 148, 136, 0.2)',
+                        '2xl': '0 25px 50px -12px rgba(13, 148, 136, 0.25)',
+                    }
+                }
+            }
+        }'''
+html = re.sub(r'tailwind\.config\s*=\s*\{.*?\}\s*\}', new_tailwind_config, html, flags=re.DOTALL)
+
+# Refactor colors in HTML to use CSS variables
+html = html.replace('bg-[#FDFBF7]', 'bg-[var(--bg-dark)]')
+html = html.replace('bg-[#FDFBF7]/90', 'bg-[var(--bg-dark)]/90')
+html = html.replace('bg-slate-900', 'bg-[var(--bg-panel)]')
+html = html.replace('bg-slate-800', 'bg-[var(--bg-panel)]')
+
+html = html.replace('text-slate-100', 'text-[var(--text-main)]')
+html = html.replace('text-slate-200', 'text-[var(--text-main)]')
+html = html.replace('text-white', 'text-[var(--text-main)]')
+
+html = html.replace('text-slate-300', 'text-[var(--text-muted)]')
+html = html.replace('text-slate-400', 'text-[var(--text-muted)]')
+
+html = html.replace('text-teal-600', 'text-[var(--accent-teal)]')
+html = html.replace('text-teal-400', 'text-[var(--accent-teal)]')
+html = html.replace('text-teal-300', 'text-[var(--accent-teal)]')
+
+html = html.replace('bg-teal-600', 'bg-[var(--accent-teal)]')
+html = html.replace('bg-teal-500', 'bg-[var(--accent-teal)]')
+
+html = html.replace('border-slate-400/20', 'border-[var(--border-teal)]')
+html = html.replace('border-teal-600/30', 'border-[var(--border-teal)]')
+html = html.replace('border-teal-500/30', 'border-[var(--border-teal)]')
+html = html.replace('border-teal-500/40', 'border-[var(--border-teal)]')
+html = html.replace('border-teal-500/50', 'border-[var(--border-teal)]')
+
+with open(html_path, 'w', encoding='utf-8') as f: f.write(html)
+
+with open(css_path, 'r', encoding='utf-8') as f: css = f.read()
+
+new_css = '''/* POLARIS Maritime Forensic GIS Engine - High-Tech UI Stylesheet */
+@import url("https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@300;400;500;600;700&display=swap");
+
+:root {
+    --bg-dark: #070d0d;
+    --bg-panel: rgba(8, 20, 24, 0.88);
+    --bg-card: rgba(12, 28, 34, 0.95);
+    --border-teal: rgba(13, 148, 136, 0.35);
+    --text-main: #e2e8f0;
+    --text-muted: #94a3b8;
+    --accent-teal: #0D9488;
+    --accent-amber: #f59e0b;
+    --accent-red: #ef4444;
+}
+
+html.light-mode, body.light-mode {
+    --bg-dark: #FDFBF7;
+    --bg-panel: #F3EFE6;
+    --bg-card: #F3EFE6;
+    --border-teal: rgba(13, 148, 136, 0.25);
+    --text-main: #1E293B;
+    --text-muted: #475569;
+    --accent-teal: #0D9488;
+    --accent-amber: #f59e0b;
+    --accent-red: #ef4444;
+}
+
+/* Base Lock */
+html, body {
+    height: 100%; width: 100%; margin: 0; padding: 0; overflow: hidden;
+    background-color: var(--bg-dark); color: var(--text-main);
+    font-family: 'Roboto Condensed', sans-serif; font-size: 13px; -webkit-font-smoothing: antialiased;
+}
+.text-xs { font-size: 12px !important; }
+.text-\[10px\] { font-size: 11px !important; }
+#map-layer-panel { max-height: 220px; overflow-y: auto; }
+#app-root { display: flex; flex-direction: column; height: 100vh; width: 100vw; overflow: hidden; position: relative; min-height: 0; }
+#content-row { flex: 1; display: flex; position: relative; overflow: hidden; }
+#sidebar-left, #left-dashboard { min-height: 0; overflow-y: auto; }
+#sidebar-right { display: none; }
+.font-pixel, .font-mono-tech, .font-title { font-family: 'Roboto Condensed', sans-serif; letter-spacing: 0.05em; }
+
+/* Section Header & Tooltips */
+.panel-header { display: flex; align-items: center; justify-content: space-between; gap: 6px; font-size: 14px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-muted); }
+.panel-info { position: relative; display: inline-flex; align-items: center; cursor: help; color: var(--text-muted); }
+.panel-info:hover { color: var(--accent-teal); }
+
+/* Landing Screen */
+#landing-screen { position: absolute; inset: 0; z-index: 100; background-color: var(--bg-dark); display: flex; flex-direction: column; overflow-y: auto; }
+#landing-screen.hidden { display: none !important; }
+
+/* Active Simulation View Layout */
+#simulation-view { display: flex; flex-direction: column; height: 100vh; width: 100vw; overflow: hidden; }
+#simulation-view.hidden { display: none !important; }
+
+/* Top Navigation Bar */
+.polaris-navbar { height: 48px; background-color: var(--bg-dark); border-bottom: 1px solid var(--border-teal); display: flex; align-items: center; justify-content: space-between; padding: 0 16px; z-index: 40; backdrop-filter: blur(10px); }
+
+/* Main Console Container */
+.console-main { flex: 1; display: flex; position: relative; overflow: hidden; }
+
+/* Left Icon Navigation Toolbar */
+.icon-nav-sidebar { width: 52px; background-color: var(--bg-panel); border-right: 1px solid var(--border-teal); display: flex; flex-direction: column; align-items: center; padding: 8px 0; z-index: 30; backdrop-filter: blur(8px); }
+
+.nav-icon-btn { width: 38px; height: 38px; border-radius: 12px; display: flex; align-items: center; justify-content: center; color: var(--text-muted); margin-bottom: 8px; cursor: pointer; transition: all 0.2s ease; border: 1px solid transparent; }
+.nav-icon-btn:hover { color: var(--accent-teal); background-color: rgba(13, 148, 136, 0.15); border-color: var(--border-teal); }
+.nav-icon-btn.active { color: #fff; background-color: var(--accent-teal); border-color: var(--accent-teal); box-shadow: 0 4px 12px rgba(13, 148, 136, 0.3); }
+
+/* Leaflet Map Area */
+#gis-map { flex: 1; height: 100%; width: 100%; z-index: 10; background-color: var(--bg-dark); }
+
+/* Floating Glass Cards on Map */
+.floating-card { background-color: var(--bg-panel); border: 1px solid var(--border-teal); border-radius: 16px; backdrop-filter: blur(16px); box-shadow: 0 12px 32px rgba(13, 148, 136, 0.15); color: var(--text-main); z-index: 20; }
+.left-map-panel { position: absolute; top: 14px; left: 66px; width: 250px; max-height: calc(100vh - 120px); overflow-y: auto; pointer-events: auto; }
+.right-info-panel { position: absolute; top: 14px; right: 14px; width: 360px; max-height: calc(100vh - 120px); overflow-y: auto; pointer-events: auto; }
+@media (max-width: 768px) { .right-info-panel { width: 300px; } }
+
+/* Bottom Timeline Scrubber Bar */
+.timeline-bar { height: 48px; background-color: var(--bg-panel); border-top: 1px solid var(--border-teal); display: flex; align-items: center; padding: 0 16px; z-index: 30; backdrop-filter: blur(10px); color: var(--text-main); }
+input[type="checkbox"] { accent-color: var(--accent-teal); cursor: pointer; }
+
+/* Leaflet Zoom & Controls */
+.leaflet-control-zoom { border: 1px solid var(--border-teal) !important; border-radius: 12px !important; overflow: hidden; }
+.leaflet-control-zoom a { background-color: var(--bg-panel) !important; color: var(--accent-teal) !important; border-bottom: 1px solid var(--border-teal) !important; }
+.leaflet-control-zoom a:hover { background-color: var(--accent-teal) !important; color: #ffffff !important; }
+.leaflet-popup-content-wrapper { background: var(--bg-panel) !important; color: var(--text-main) !important; border: 1px solid var(--border-teal) !important; border-radius: 12px !important; box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3) !important; }
+.leaflet-popup-tip { background: var(--bg-panel) !important; border: 1px solid var(--border-teal) !important; }
+
+/* Custom Scrollbar */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border-teal); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--accent-teal); }
+
+/* Risk Badges */
+.risk-badge { display: inline-flex; align-items: center; font-size: 11px; font-weight: 700; letter-spacing: 0.05em; padding: 2px 8px; border-radius: 999px; border: 1px solid transparent; }
+.risk-LOW      { background: rgba(45,212,191,0.15); color: #2dd4bf; border-color: rgba(45,212,191,0.4); }
+.risk-MEDIUM   { background: rgba(245,158,11,0.15); color: #fbbf24; border-color: rgba(251,191,36,0.4); }
+.risk-HIGH     { background: rgba(239,68,68,0.18);  color: #f87171; border-color: rgba(248,113,113,0.4); }
+.risk-ELEVATED { background: rgba(168,85,247,0.18); color: #c084fc; border-color: rgba(192,132,252,0.4); }
+.risk-INSUFFICIENT_DATA, .risk-UNKNOWN  { background: rgba(71,85,105,0.25);   color: #94a3b8; border-color: rgba(100,116,139,0.4); }
+
+/* Modals */
+.polaris-modal { display: none; position: fixed; inset: 0; align-items: center; justify-content: center; padding: 1.5rem; background: rgba(4, 10, 12, 0.65); backdrop-filter: blur(8px); z-index: 100; }
+.polaris-modal[data-open="true"] { display: flex; }
+
+/* Animations */
+@keyframes origin-beacon {
+    0% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.6), 0 0 0 0 rgba(245, 158, 11, 0.4), 0 0 0 0 rgba(245, 158, 11, 0.2); }
+    100% { box-shadow: 0 0 0 10px rgba(245, 158, 11, 0), 0 0 0 20px rgba(245, 158, 11, 0), 0 0 0 30px rgba(245, 158, 11, 0); }
+}
+.origin-pulse { border-radius: 50%; background-color: var(--accent-amber); animation: origin-beacon 2.5s infinite cubic-bezier(0.25, 0.46, 0.45, 0.94); }
+
+.wave-border { position: relative; }
+.wave-border::after { content: ''; position: absolute; bottom: -10px; left: 0; width: 100%; height: 10px; background: radial-gradient(circle at 10px 0, transparent 10px, var(--accent-teal) 11px); background-size: 20px 10px; background-repeat: repeat-x; opacity: 0.15; }
+'''
+
+with open(css_path, 'w', encoding='utf-8') as f: f.write(new_css)
+
+with open(js_path, 'r', encoding='utf-8') as f: js = f.read()
+js = js.replace('currentTheme = "light"', 'currentTheme = localStorage.getItem("polaris_theme") || "light"')
+with open(js_path, 'w', encoding='utf-8') as f: f.write(js)
+
+print("HTML, CSS, and JS refactored to support CSS variables and Light/Dark themes successfully!")
