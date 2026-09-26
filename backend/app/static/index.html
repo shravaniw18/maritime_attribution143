@@ -47,6 +47,7 @@
         <header class="h-16 px-8 flex items-center justify-between border-b border-teal-500/20 bg-black/60 backdrop-blur-md">
             <div class="flex items-center space-x-8">
                 <div class="flex items-center space-x-2 cursor-pointer" onclick="showConsoleView()">
+                    <img src="/static/img/lehar-logo-refined.png" alt="LEHAR Icon" class="h-8 object-contain">
                     <span class="font-pixel text-2xl font-bold tracking-widest text-teal-400 glow-teal">LEHAR</span>
                 </div>
                 <nav class="flex items-center space-x-6 text-xs font-pixel tracking-wider">
@@ -66,12 +67,13 @@
         </header>
 
         <!-- Landing Hero Container -->
-        <div class="flex-1 flex flex-col items-center justify-center text-center px-4 py-12 max-w-4xl mx-auto space-y-6">
-            <h1 class="text-4xl md:text-6xl font-bold tracking-wider uppercase font-title leading-tight">
-                <span class="block text-white">LAGRANGIAN EVIDENCE</span>
-                <span class="block text-white">FOR HAZARD</span>
-                <span class="block text-teal-400 glow-teal mt-1">ATTRIBUTION &amp; RECONSTRUCTION</span>
-            </h1>
+        <div class="flex-1 flex flex-col items-center justify-center text-center px-4 py-12 max-w-4xl mx-auto space-y-8">
+            <div class="flex flex-col items-center w-full max-w-lg mx-auto">
+                <img src="/static/img/lehar-logo-refined.png" alt="LEHAR Logo" class="w-full h-auto object-contain drop-shadow-[0_0_20px_rgba(45,212,191,0.4)]" style="transform: scale(1.05);">
+                <div class="mt-2 text-teal-400 text-xs md:text-sm tracking-wider uppercase font-title font-semibold text-center">
+                    Lagrangian Evidence for Hazard Attribution &amp; Reconstruction
+                </div>
+            </div>
             <p class="text-slate-300 text-sm md:text-base max-w-2xl font-sans font-light leading-relaxed">
                 Trace the origin of maritime pollution events through satellite intelligence, Lagrangian drift reconstruction, and AIS vessel correlation.
             </p>
@@ -90,50 +92,42 @@
                 <div class="font-pixel text-teal-400 text-sm tracking-widest uppercase mb-6 text-center glow-teal">
                     INVESTIGATION PIPELINE
                 </div>
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-left">
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-left items-stretch">
                     <!-- Step 01 -->
-                    <div class="bg-slate-900/80 border border-teal-500/30 p-4 rounded-lg flex flex-col justify-between hover:border-teal-400 transition cursor-pointer" onclick="showConsoleView()">
-                        <div class="flex items-center justify-between mb-3">
+                    <div class="bg-slate-900/80 border border-teal-500/30 p-4 rounded-lg flex flex-col hover:border-teal-400 transition cursor-pointer" onclick="showConsoleView()">
+                        <div class="flex items-center justify-between mb-3 shrink-0">
                             <i data-lucide="satellite" class="w-6 h-6 text-teal-400"></i>
                             <span class="font-pixel text-2xl font-bold text-slate-200">01</span>
                         </div>
-                        <div>
-                            <h4 class="font-pixel text-teal-300 text-sm font-bold uppercase tracking-wider">DETECT</h4>
-                            <p class="text-[11px] text-slate-400 mt-1 leading-normal">Multi-modal SAR & EO imagery & DeepLabv3+DeCUR oil slick segmentation.</p>
-                        </div>
+                        <h4 class="font-pixel text-teal-300 text-sm font-bold uppercase tracking-wider shrink-0">DETECT</h4>
+                        <p class="text-[11px] text-slate-400 mt-1 leading-normal flex-1">Multi-modal SAR & EO imagery & DeepLabv3+DeCUR oil slick segmentation.</p>
                     </div>
                     <!-- Step 02 -->
-                    <div class="bg-slate-900/80 border border-teal-500/30 p-4 rounded-lg flex flex-col justify-between hover:border-teal-400 transition cursor-pointer" onclick="showConsoleView()">
-                        <div class="flex items-center justify-between mb-3">
+                    <div class="bg-slate-900/80 border border-teal-500/30 p-4 rounded-lg flex flex-col hover:border-teal-400 transition cursor-pointer" onclick="showConsoleView()">
+                        <div class="flex items-center justify-between mb-3 shrink-0">
                             <i data-lucide="waves" class="w-6 h-6 text-teal-400"></i>
                             <span class="font-pixel text-2xl font-bold text-slate-200">02</span>
                         </div>
-                        <div>
-                            <h4 class="font-pixel text-teal-300 text-sm font-bold uppercase tracking-wider">RECONSTRUCT</h4>
-                            <p class="text-[11px] text-slate-400 mt-1 leading-normal">Reverse Lagrangian drift physics & ocean hydrodynamics.</p>
-                        </div>
+                        <h4 class="font-pixel text-teal-300 text-sm font-bold uppercase tracking-wider shrink-0">RECONSTRUCT</h4>
+                        <p class="text-[11px] text-slate-400 mt-1 leading-normal flex-1">Reverse Lagrangian drift physics & ocean hydrodynamics.</p>
                     </div>
                     <!-- Step 03 -->
-                    <div class="bg-slate-900/80 border border-teal-500/30 p-4 rounded-lg flex flex-col justify-between hover:border-teal-400 transition cursor-pointer" onclick="showConsoleView()">
-                        <div class="flex items-center justify-between mb-3">
+                    <div class="bg-slate-900/80 border border-teal-500/30 p-4 rounded-lg flex flex-col hover:border-teal-400 transition cursor-pointer" onclick="showConsoleView()">
+                        <div class="flex items-center justify-between mb-3 shrink-0">
                             <i data-lucide="target" class="w-6 h-6 text-teal-400"></i>
                             <span class="font-pixel text-2xl font-bold text-slate-200">03</span>
                         </div>
-                        <div>
-                            <h4 class="font-pixel text-teal-300 text-sm font-bold uppercase tracking-wider">CORRELATE</h4>
-                            <p class="text-[11px] text-slate-400 mt-1 leading-normal">Spatiotemporal AIS vessel tracking & trajectory match.</p>
-                        </div>
+                        <h4 class="font-pixel text-teal-300 text-sm font-bold uppercase tracking-wider shrink-0">CORRELATE</h4>
+                        <p class="text-[11px] text-slate-400 mt-1 leading-normal flex-1">Spatiotemporal AIS vessel tracking & trajectory match.</p>
                     </div>
                     <!-- Step 04 -->
-                    <div class="bg-slate-900/80 border border-teal-500/30 p-4 rounded-lg flex flex-col justify-between hover:border-teal-400 transition cursor-pointer" onclick="showConsoleView()">
-                        <div class="flex items-center justify-between mb-3">
+                    <div class="bg-slate-900/80 border border-teal-500/30 p-4 rounded-lg flex flex-col hover:border-teal-400 transition cursor-pointer" onclick="showConsoleView()">
+                        <div class="flex items-center justify-between mb-3 shrink-0">
                             <i data-lucide="scale" class="w-6 h-6 text-teal-400"></i>
                             <span class="font-pixel text-2xl font-bold text-slate-200">04</span>
                         </div>
-                        <div>
-                            <h4 class="font-pixel text-teal-300 text-sm font-bold uppercase tracking-wider">ATTRIBUTE</h4>
-                            <p class="text-[11px] text-slate-400 mt-1 leading-normal">Multi-factor weighted scoring & suspect ranking.</p>
-                        </div>
+                        <h4 class="font-pixel text-teal-300 text-sm font-bold uppercase tracking-wider shrink-0">ATTRIBUTE</h4>
+                        <p class="text-[11px] text-slate-400 mt-1 leading-normal flex-1">Multi-factor weighted scoring & suspect ranking.</p>
                     </div>
                 </div>
             </div>
@@ -152,6 +146,7 @@
                     <i data-lucide="compass" class="w-4 h-4"></i>
                 </div>
                 <div class="flex items-center space-x-2 cursor-pointer" onclick="showLandingView()">
+                    <img src="/static/img/lehar-logo-refined.png" alt="LEHAR Icon" class="h-6 object-contain">
                     <span class="font-pixel text-lg font-bold tracking-widest text-teal-400 glow-teal">LEHAR</span>
                     <span class="text-xs text-slate-400">&bull;</span>
                     <span class="font-pixel text-xs font-bold text-teal-300 tracking-wider">ACTIVE SIMULATION</span>
