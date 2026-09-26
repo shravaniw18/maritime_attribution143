@@ -1,4 +1,4 @@
-﻿import math
+import math
 import numpy as np
 from datetime import datetime, timedelta
 from typing import List, Dict, Any, Tuple
@@ -166,6 +166,10 @@ class LagrangianDriftEngine:
         release_window_start = observation_time - timedelta(hours=duration_hours)
         release_window_end = observation_time - timedelta(hours=max(4.0, duration_hours * 0.15))
         
+        # Calculate spill age and uncertainty based on reconstruction timing
+        spill_age = (observation_time - most_probable_release).total_seconds() / 3600.0
+        spill_age_unc = abs((release_window_end - release_window_start).total_seconds() / 3600.0) / 2.0
+        
         # 2D Kernel Density Estimation Grid for Heatmap
         density_grid, grid_bounds = self._compute_kde_grid(lats, lons)
         
@@ -191,6 +195,8 @@ class LagrangianDriftEngine:
             origin_time_window_start=release_window_start,
             origin_time_window_end=release_window_end,
             most_probable_release_time=most_probable_release,
+            estimated_spill_age_hours=round(spill_age, 1),
+            spill_age_uncertainty_hours=round(spill_age_unc, 1),
             ellipses=ellipses,
             density_heatmap_grid=density_grid,
             grid_bounds=grid_bounds,

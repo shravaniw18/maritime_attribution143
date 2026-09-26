@@ -89,6 +89,8 @@ class DriftOriginEstimate(BaseModel):
     origin_time_window_start: datetime
     origin_time_window_end: datetime
     most_probable_release_time: datetime
+    estimated_spill_age_hours: Optional[float] = None
+    spill_age_uncertainty_hours: Optional[float] = None
     ellipses: List[OriginUncertaintyEllipse]
     density_heatmap_grid: List[List[float]]  # [lat, lon, normalized_density]
     grid_bounds: List[float]  # [min_lat, min_lon, max_lat, max_lon]

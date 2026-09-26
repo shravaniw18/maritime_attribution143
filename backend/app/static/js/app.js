@@ -204,6 +204,9 @@ function updateSidebarMetadata() {
     const winStart = new Date(driftData.origin_time_window_start).toISOString().substring(11, 16);
     const winEnd = new Date(driftData.origin_time_window_end).toISOString().substring(11, 16);
     setText("meta-origin-window", `${winStart} – ${winEnd} UTC`);
+    if (driftData.estimated_spill_age_hours !== undefined && driftData.spill_age_uncertainty_hours !== undefined) {
+        setText("meta-spill-age", `~${driftData.estimated_spill_age_hours.toFixed(1)}h (± ${driftData.spill_age_uncertainty_hours.toFixed(1)}h)`);
+    }
     setText("meta-spatial-unc", `±${driftData.spatial_uncertainty_km.toFixed(1)} km (95%)`);
     setText("meta-currents", `${driftData.ocean_current_mean_mps.toFixed(2)} m/s (CMEMS)`);
     setText("meta-winds", `${driftData.wind_speed_mean_mps.toFixed(1)} m/s (ERA5)`);
@@ -312,7 +315,7 @@ function renderDriftLayers() {
         iconAnchor: [8, 8]
     });
     const originMarker = L.marker([driftData.most_probable_origin_lat, driftData.most_probable_origin_lon], { icon: originIcon })
-        .bindPopup(`<div class="text-xs p-1"><b class="text-amber-400">Probable Spill Origin Zone</b><br>Peak Release: ${new Date(driftData.most_probable_release_time).toUTCString().substring(17, 22)} UTC<br>Uncertainty: ±${driftData.spatial_uncertainty_km} km</div>`);
+        .bindPopup(`<div class="text-xs p-1"><b class="text-amber-400">Probable Spill Origin Zone</b><br>Peak Release: ${new Date(driftData.most_probable_release_time).toUTCString().substring(17, 22)} UTC<br>Estimated Age: ~${driftData.estimated_spill_age_hours ? driftData.estimated_spill_age_hours.toFixed(1) : "0.0"}h<br>Uncertainty: ±${driftData.spatial_uncertainty_km} km</div>`);
     ellipseLayer.addLayer(originMarker);
 
     if (driftData.sample_trajectories) {
