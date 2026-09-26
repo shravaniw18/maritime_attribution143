@@ -1007,3 +1007,51 @@ async function toggleAnalystFlag(isFlag) {
         console.error("Error updating review:", err);
     }
 }
+
+/* ── Theme Toggling Logic ── */
+function initTheme() {
+    applyTheme(currentTheme);
+}
+
+function applyTheme(themeName) {
+    if (themeName === "light") {
+        document.body.classList.add("light-theme");
+        document.body.classList.remove("dark-theme");
+    } else {
+        document.body.classList.add("dark-theme");
+        document.body.classList.remove("light-theme");
+    }
+
+    // Toggle icon (sun/moon) if it exists
+    const sunIcon = document.getElementById("theme-toggle-icon-sun");
+    const moonIcon = document.getElementById("theme-toggle-icon-moon");
+    if (sunIcon && moonIcon) {
+        if (themeName === "light") {
+            sunIcon.classList.add("hidden");
+            moonIcon.classList.remove("hidden");
+        } else {
+            moonIcon.classList.add("hidden");
+            sunIcon.classList.remove("hidden");
+        }
+    }
+
+    // Switch basemap if available
+    if (map && baseLayers["light"] && baseLayers["dark"]) {
+        if (themeName === "light" && currentBaseLayer !== "light") {
+            map.removeLayer(baseLayers[currentBaseLayer]);
+            map.addLayer(baseLayers["light"]);
+            currentBaseLayer = "light";
+        } else if (themeName === "dark" && currentBaseLayer !== "dark") {
+            map.removeLayer(baseLayers[currentBaseLayer]);
+            map.addLayer(baseLayers["dark"]);
+            currentBaseLayer = "dark";
+        }
+    }
+}
+
+function toggleTheme() {
+    currentTheme = currentTheme === "dark" ? "light" : "dark";
+    localStorage.setItem("polaris_theme", currentTheme);
+    applyTheme(currentTheme);
+    showToast(`Switched to ${currentTheme} theme`);
+}

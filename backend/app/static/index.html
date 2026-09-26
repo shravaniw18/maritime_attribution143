@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8"/>
     <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-    <title>POLARIS — Probabilistic Maritime Pollution Attribution Engine</title>
+    <title>LEHAR — Lagrangian Evidence for Hazard Attribution & Reconstruction</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -27,7 +27,7 @@
     <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <!-- Custom Cyber/Tactical Stylesheet -->
-    <link href="/static/css/styles.css" rel="stylesheet"/>
+    <link href="/static/css/styles.css?v=2" rel="stylesheet"/>
 </head>
 <body class="bg-[#070d0d] text-slate-100 select-none">
 
@@ -47,7 +47,7 @@
         <header class="h-16 px-8 flex items-center justify-between border-b border-teal-500/20 bg-black/60 backdrop-blur-md">
             <div class="flex items-center space-x-8">
                 <div class="flex items-center space-x-2 cursor-pointer" onclick="showConsoleView()">
-                    <span class="font-pixel text-2xl font-bold tracking-widest text-teal-400 glow-teal">POLARIS</span>
+                    <span class="font-pixel text-2xl font-bold tracking-widest text-teal-400 glow-teal">LEHAR</span>
                 </div>
                 <nav class="flex items-center space-x-6 text-xs font-pixel tracking-wider">
                     <a href="#" onclick="showConsoleView()" class="text-teal-400 hover:text-white transition">PIPELINE</a>
@@ -98,7 +98,7 @@
                         </div>
                         <div>
                             <h4 class="font-pixel text-teal-300 text-sm font-bold uppercase tracking-wider">DETECT</h4>
-                            <p class="text-[11px] text-slate-400 mt-1 leading-normal">Satellite SAR imagery & U-Net oil slick segmentation.</p>
+                            <p class="text-[11px] text-slate-400 mt-1 leading-normal">Multi-modal SAR & EO imagery & DeepLabv3+DeCUR oil slick segmentation.</p>
                         </div>
                     </div>
                     <!-- Step 02 -->
@@ -151,7 +151,7 @@
                     <i data-lucide="compass" class="w-4 h-4"></i>
                 </div>
                 <div class="flex items-center space-x-2 cursor-pointer" onclick="showLandingView()">
-                    <span class="font-pixel text-lg font-bold tracking-widest text-teal-400 glow-teal">POLARIS</span>
+                    <span class="font-pixel text-lg font-bold tracking-widest text-teal-400 glow-teal">LEHAR</span>
                     <span class="text-xs text-slate-400">&bull;</span>
                     <span class="font-pixel text-xs font-bold text-teal-300 tracking-wider">ACTIVE SIMULATION</span>
                 </div>
@@ -321,14 +321,14 @@
                         <div class="flex items-center justify-between p-2 rounded bg-slate-900/90 border border-slate-800">
                             <span class="flex items-center space-x-2 text-slate-300">
                                 <i data-lucide="check-circle-2" class="w-4 h-4 text-emerald-400"></i>
-                                <span>1. SAR Calibration</span>
+                                <span>1. Image Calibration</span>
                             </span>
-                            <span class="text-slate-400">Lee Filter</span>
+                            <span class="text-slate-400">SAR/EO Pipelines</span>
                         </div>
                         <div class="flex items-center justify-between p-2 rounded bg-slate-900/90 border border-slate-800">
                             <span class="flex items-center space-x-2 text-slate-300">
                                 <i data-lucide="check-circle-2" class="w-4 h-4 text-emerald-400"></i>
-                                <span>2. U-Net Segmentation</span>
+                                <span>2. DeepLabv3+DeCUR Seg.</span>
                             </span>
                             <span id="meta-oil-prob" class="font-bold text-teal-400">84.0%</span>
                         </div>

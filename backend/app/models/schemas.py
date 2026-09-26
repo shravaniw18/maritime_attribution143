@@ -31,6 +31,9 @@ class SpillDetectionResult(BaseModel):
     classes_detected: List[str]
     sar_intensity_mean_db: float
     speckle_snr_db: float
+    eo_detection_confidence: Optional[float] = None
+    eo_encoder_init: Optional[str] = None
+    fusion_method: str = "sar_only"
 
 class DriftSimulationRequest(BaseModel):
     duration_hours: int = Field(default=48, ge=1, le=120)

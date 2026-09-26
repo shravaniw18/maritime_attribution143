@@ -15,7 +15,8 @@ from app.models.schemas import (
     EvidenceGraph
 )
 from app.services.sar_preprocessor import SARPreprocessor
-from app.services.unet_detector import UNetDetector
+from app.services.unet_detector import UNetDetector, EODetector
+import rasterio
 from app.services.geometry_extractor import GeometryExtractor
 from app.services.drift_engine import LagrangianDriftEngine
 from app.services.trajectory_analyzer import TrajectoryAnalyzer
@@ -295,6 +296,7 @@ class CaseManager:
         self.cases_evidence_graphs: Dict[str, EvidenceGraph] = {}
         
         self.unet_detector = UNetDetector()
+        self.eo_detector = EODetector()
         self.drift_engine = LagrangianDriftEngine()
         
         self.ais_providers = {
@@ -452,6 +454,29 @@ class CaseManager:
             sar_intensity_mean_db=sar_meta["mean_backscatter_db"],
             speckle_snr_db=sar_meta["speckle_snr_db"]
         )
+        
+        # Check for EO data
+        eo_path = settings.DATA_DIR / "cases" / f"{case_id}_eo.tif"
+        if eo_path.exists():
+            try:
+                with rasterio.open(eo_path) as src:
+                    num_bands = src.count
+                    bands = [src.read(i) for i in range(1, min(4, num_bands + 1))]
+                    while len(bands) < 3:
+                        bands.append(np.zeros_like(bands[0]))
+                    img = np.stack(bands, axis=-1).astype(np.float32)
+                    max_val = np.max(img)
+                    if max_val > 0:
+                        img = img / max_val
+                
+                _, _, eo_metrics = self.eo_detector.segment_eo_scene(img, spill_mask)
+                detection.eo_detection_confidence = eo_metrics["detection_confidence"]
+                detection.eo_encoder_init = self.eo_detector.encoder_init
+                detection.fusion_method = "independent_reported"
+                logger.info(f"Successfully processed EO scene for {case_id}")
+            except Exception as e:
+                logger.error(f"Failed to load EO scene for {case_id}: {e}")
+        
         self.cases_detections[case_id] = detection
 
         # Reverse Drift

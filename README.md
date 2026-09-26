@@ -1,10 +1,10 @@
-# POLARIS: Probabilistic Maritime Pollution Attribution Engine
+# LEHAR: Lagrangian Evidence for Hazard Attribution & Reconstruction
 
 ### Satellite Oil-Spill Detection · Lagrangian Drift Reconstruction & Prediction · AIS Vessel Attribution · Behavioral Risk Profiling
 
 **Smart India Hackathon 2026 — Problem Statement SIH26143 (NTRO / Space Technology)**
 
-> **IMPORTANT LEGAL NOTICE**: POLARIS provides *probabilistic investigative decision support* to prioritize maritime assets for physical inspection and forensic sampling. It **never** claims definitive legal proof of guilt. All scores are heuristic indicators based on available AIS and SAR data only.
+> **IMPORTANT LEGAL NOTICE**: LEHAR provides *probabilistic investigative decision support* to prioritize maritime assets for physical inspection and forensic sampling. It **never** claims definitive legal proof of guilt. All scores are heuristic indicators based on available AIS and SAR data only.
 
 ---
 
@@ -31,7 +31,7 @@
 
 Operational maritime surveillance systems (EMSA CleanSeaNet, India's INCOIS OOSA) detect oil slicks and manually cross-reference nearby vessel locations. This approach systematically misses the responsible vessel: ocean slicks drift continuously under surface currents and wind, meaning the ship responsible for a discharge is rarely at the observed spill location hours later.
 
-**POLARIS** addresses this gap with an end-to-end, physically grounded, uncertainty-aware forensic intelligence pipeline that reconstructs where a slick originated rather than simply where it was observed.
+**LEHAR** addresses this gap with an end-to-end, physically grounded, uncertainty-aware forensic intelligence pipeline that reconstructs where a slick originated rather than simply where it was observed.
 
 ---
 
@@ -44,10 +44,12 @@ Satellite SAR Scene (Sentinel-1 / PALSAR)
 SAR Calibration + Lee Speckle Filtering
         │
         ▼
-U-Net Semantic Segmentation
-(Binary: Background vs. Oil-Spill)
+Satellite Scene (Sentinel-1 SAR or Sentinel-2 EO)
         │
         ▼
+DeepLabv3+DeCUR Semantic Segmentation
+(Two branches: SAR and EO, shared 5-class head)
+(0 Sea | 1 Oil Spill | 2 Look-alike | 3 Ship | 4 Land)
 GeoJSON Polygon Extraction + Geodesic Area (km²)
         │
         ├──────────────────────────────────────┐
@@ -91,11 +93,13 @@ Interactive GIS Dashboard + Investigation Brief
 
 ## 3. Key Features
 
-### SAR Detection
-- **Binary U-Net segmentation** trained on the Deep-SAR Oil Spill Segmentation dataset (8,070 PALSAR/Sentinel-1 image-mask pairs, 256×256 px)
-- Lee speckle filter, dB-scale calibration, percentile normalization
-- GeoJSON polygon vectorization with geodesic area and centroid extraction
-- Oil probability, look-alike probability, and detection confidence reported per scene
+### SAR & EO Detection
+- **Two-Branch DeepLabv3-ResNet50 architecture** supporting both SAR (1-channel, adapted) and EO (3-channel) imagery.
+- **DeCUR Pre-trained Backbones**: Designed to load joint multimodal weights from `zhu-xlab/DeCUR`.
+- Shared 5-class head: Sea, Oil Spill, Look-alike, Ship, Land.
+- GeoJSON polygon vectorization with geodesic area and centroid extraction.
+- Oil probability, look-alike probability, and detection confidence reported per scene.
+- Falls back to ImageNet weights or random init if DeCUR checkpoints are missing.
 
 ### Drift Engine
 - **Backward drift (origin reconstruction):** 1,200 particles seeded in the observed spill polygon, advected backward 48 hours under `u_drift = −(u_current + 0.031·u_wind)` with stochastic diffusion
@@ -277,7 +281,7 @@ For faster multi-epoch training on a free T4 GPU:
 
 ## 8. AIS Database
 
-POLARIS uses DuckDB (`data/db/polaris.duckdb`) for vessel trajectory storage and spatio-temporal queries.
+LEHAR uses DuckDB (`data/db/polaris.duckdb`) for vessel trajectory storage and spatio-temporal queries.
 
 ### Initialize schema
 
@@ -350,7 +354,7 @@ The single-page GIS dashboard (`backend/app/static/index.html`) features a conso
 
 ```text
 ┌─────────────────────────────────────────────────────────────────────────┐
-│  HEADER: POLARIS | Historical/Simulation Mode badge | Scenario selector │
+│  HEADER: LEHAR   | Historical/Simulation Mode badge | Scenario selector │
 │           SAR Active | Evidence Graph | Weights | Investigation Brief   │
 │  DISCLAIMER: forensic decision support notice                           │
 ├──────────────────────────────┬──────────────────────────────────────────┤
@@ -431,7 +435,8 @@ This section is honest about what is fully wired versus what uses simplified sta
 ### Fully operational
 
 - SAR preprocessing pipeline (Lee filter, calibration, normalization)
-- U-Net segmentation inference (`data/models/model.pth`, num_classes=2)
+- SAR & EO ingestion pipeline
+- DeepLabv3-ResNet50 segmentation inference setup (supports 5-class outputs)
 - GeoJSON polygon extraction and geodesic area computation
 - Backward Lagrangian drift (1,200 particles, 48h, stochastic diffusion, KDE heatmap)
 - Forward Lagrangian drift prediction (300 particles, 48h, growing uncertainty)
@@ -447,8 +452,8 @@ This section is honest about what is fully wired versus what uses simplified sta
 | Component | Current state | What's needed for production |
 |---|---|---|
 | Ocean/wind forcing | Constant vectors per case | Live CMEMS ocean current + ECMWF/ERA5 wind API integration |
-| AIS data for demo cases | Programmatically generated candidate vessels | Real AIS CSV ingestion via `build_ais_db.py` |
-| U-Net model | 1-epoch prototype (Val IoU ~0.51, binary only) | Multi-epoch GPU training; 5-class labeled dataset |
+| DeCUR Checkpoints | Pending download | Download joint SAR+EO checkpoint from zhu-xlab/DeCUR repository |
+| U-Net model | Replaced by DeepLabv3+DeCUR | Full multi-epoch training on 5-class dataset required |
 | Vessel risk profiles | `INSUFFICIENT_DATA` for demo cases (no 24h+ AIS history in DB) | Populated DuckDB from real historical AIS feeds |
 | Coastline impact layer | Not implemented | Port/coastline proximity analysis for forward drift |
 

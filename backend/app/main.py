@@ -4,6 +4,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, HTMLResponse
+from contextlib import asynccontextmanager
 
 from app.config import settings
 from app.api import (
@@ -16,12 +17,21 @@ from app.api import (
 )
 from app.utils.logger import logger
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    from app.services.detector_startup import load_all_detectors
+    results = load_all_detectors(settings)
+    app.state.sar_detector, app.state.encoder_init = results["sar"]
+    app.state.eo_detector, app.state.encoder_init_eo = results["eo"]
+    yield
+
 app = FastAPI(
     title=settings.PROJECT_NAME,
     version=settings.VERSION,
-    description="Probabilistic Ocean-Lagrangian Attribution & Remote-sensing Intelligence System (SIH26143)",
+    description="Lagrangian Evidence for Hazard Attribution & Reconstruction (SIH26143)",
     docs_url="/docs",
-    redoc_url="/redoc"
+    redoc_url="/redoc",
+    lifespan=lifespan
 )
 
 # Enable permissive CORS for frontend / GIS client access
@@ -54,7 +64,7 @@ if static_dir.exists():
 async def health_check():
     return {
         "status": "healthy",
-        "service": "POLARIS Attribution Engine",
+        "service": "LEHAR Attribution Engine",
         "version": settings.VERSION,
         "disclaimer": settings.LEGAL_DISCLAIMER
     }
@@ -64,7 +74,7 @@ async def serve_dashboard():
     index_file = static_dir / "index.html"
     if index_file.exists():
         return FileResponse(str(index_file))
-    return HTMLResponse(f"<h1>POLARIS Engine API Running. Visit <a href='/docs'>/docs</a></h1><p>Debug: {static_dir} | {index_file} | exists: {index_file.exists()}</p>")
+    return HTMLResponse(f"<h1>LEHAR Engine API Running. Visit <a href='/docs'>/docs</a></h1><p>Debug: {static_dir} | {index_file} | exists: {index_file.exists()}</p>")
 
 if __name__ == "__main__":
     import uvicorn

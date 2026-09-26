@@ -1,4 +1,4 @@
-﻿import os
+import os
 from pathlib import Path
 from pydantic_settings import BaseSettings
 
@@ -12,6 +12,11 @@ class Settings(BaseSettings):
     CASES_DIR: Path = DATA_DIR / "cases"
     MODELS_DIR: Path = DATA_DIR / "models"
     STATIC_DIR: Path = Path(__file__).resolve().parent / "static"
+    
+    FINETUNED_MODEL_PATH: str = ""
+    DECUR_CHECKPOINT: str = ""
+    FINETUNED_MODEL_PATH_EO: str = ""
+    DECUR_CHECKPOINT_EO: str = ""
     
     # Drift default configurations
     DEFAULT_WIND_DRIFT_FACTOR: float = 0.031  # ~3.1% standard windage factor for oil
