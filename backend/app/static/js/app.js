@@ -108,9 +108,10 @@ function initMap() {
     map = L.map("gis-map", {
         center: [28.38, -89.15],
         zoom: 9,
-        zoomControl: true,
+        zoomControl: false,
         layers: [baseLayers["dark"], spillLayer, ellipseLayer, probRingsLayer, contourLayer, currentVectorLayer, particleLayer, vesselLayer, animMarkerLayer, rulerLayer]
     });
+    L.control.zoom({ position: 'bottomright' }).addTo(map);
     currentBaseLayer = "dark";
 
     map.on("mousemove", (e) => {
