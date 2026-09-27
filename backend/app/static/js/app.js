@@ -87,11 +87,14 @@ function setActivePanel(panelId) {
 }
 
 function initMap() {
-    baseLayers["dark"] = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        attribution: "&copy; OpenStreetMap contributors",
-        maxZoom: 18,
-        className: "map-dark-tiles"
-    });
+    baseLayers["dark"] = L.tileLayer(
+        "https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}",
+        {
+            maxZoom: 18,
+            attribution: 'Sources: Esri, HERE, Garmin, FAO, NOAA, USGS, &copy; OpenStreetMap contributors',
+            className: 'tactical-dark-filter'
+        }
+    );
     baseLayers["sat"] = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", {
         attribution: "&copy; Esri, Maxar",
         maxZoom: 18
